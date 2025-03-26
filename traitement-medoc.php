@@ -31,7 +31,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
            $type=$type;
            $nombre_field="autre_question_".$type;
            $nombre=$_POST[$nombre_field];
-            $sql = "INSERT INTO medicament (Types_medoc, Nombres, id_client, date) VALUES ('$type', '$nombre', '$dernierIdentifiant', '$date')";
+            $sql = "INSERT INTO medicament (Type, Nombres, id_client, date) VALUES ('$type', '$nombre', '$dernierIdentifiant', '$date')";
             if ($conn->query($sql) === true) {
                 $resultat = "Enregistrement des Données dans la Base ,Type: $type, Nombre: $nombre";
                 echo "<script>alert('$resultat'); window.location.href = 'index.php';</script>";

@@ -68,7 +68,7 @@ if (!isset($_SESSION["user_id"])) {
             window.location.href = "formulaire.php";
         }
         function medoc(){
-            window.location.href = "visualisation_de_donnée.php";
+            window.location.href = "visualisation_Base.php";
         }
     </script>
     <center>

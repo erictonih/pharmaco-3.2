@@ -48,10 +48,13 @@ border-radius: 10px;" id="myImage" name="myImage">
   <footer>
   <img src= "sary\logo-ministere-sante.jpg" alt="Logo-Ministere">
   <p> <script type="text/javascript"> 
-	  var today=new Date();
-  </script>© <script>
-	 console.log(today.getFullYear());
-  </script> Ministère de la Santé Pulblidue de Madagascar<br>
+	  document.addEventListener('DOMContentLoaded', () => {
+        const daty = document.getElementById('daty');
+            daty.innerText = getCurrentYear();
+    });
+  </script>
+<p id="daty">©</p>
+  Ministère de la Santé Pulblidue de Madagascar<br>
 <br>Direction de la Veille Sanitaire, de la Surveillance Epidémiologique et Riposte</p>
     <p><a href="#">Mentions légales</a> | <a href="#">Politique de confidentialité</a></p>
 </footer>

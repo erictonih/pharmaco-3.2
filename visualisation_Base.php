@@ -74,10 +74,10 @@
     }
 
     // Requête SQL pour le bar chart (médicaments)
-    $sql_medicaments = "SELECT SUM(Nombres) AS Nombre, Types_medoc
+    $sql_medicaments = "SELECT SUM(Nombres) AS Nombre, Type
                         FROM medicament
                         WHERE id_client IS NOT NULL 
-                        GROUP BY Types_medoc";
+                        GROUP BY Type";
     $result_medicaments = $conn->query($sql_medicaments);
 
     $types_medoc = [];
@@ -85,13 +85,13 @@
 
     if ($result_medicaments) {
         while ($row = $result_medicaments->fetch_assoc()) {
-            $types_medoc[] = $row['Types_medoc'];
+            $types_medoc[] = $row['Type'];
             $totals_medoc[] = $row['Nombre'];
         }
     }
 
     // Requête SQL pour le pie chart (clients)
-    $sql_clients = "SELECT Type_client, COUNT(*) AS nombre FROM client GROUP BY Type_client";
+    $sql_clients = "SELECT Type, COUNT(*) AS nombre FROM client GROUP BY Type";
     $result_clients = $conn->query($sql_clients);
 
     $types_clients = [];
@@ -99,15 +99,15 @@
 
     if ($result_clients) {
         while ($row = $result_clients->fetch_assoc()) {
-            $types_clients[] = $row['Type_client'];
+            $types_clients[] = $row['Type'];
             $totals_clients[] = $row['nombre'];
         }
     }
      // Requête SQL pour regrouper par mois et par type
      $sql = " SELECT 
          DATE_FORMAT(Date, '%Y-%m') AS mois, 
-         Types_medoc, 
-         SUM(Nombres) AS total FROM medicament WHERE Date != '0000-00-00 00:00:00' GROUP BY mois, Types_medoc ORDER BY mois, Types_medoc ";
+         Type, 
+         SUM(Nombres) AS total FROM medicament WHERE Date != '0000-00-00 00:00:00' GROUP BY mois, Type ORDER BY mois, Type";
 
     $result = $conn->query($sql);
 
@@ -118,7 +118,7 @@
     if ($result) {
         while ($row = $result->fetch_assoc()) {
          $mois = $row['mois'];
-         $type = $row['Types_medoc'];
+         $type = $row['Type'];
          $total = $row['total'];
 
          // Ajouter le mois et le type dans les listes uniques
@@ -365,6 +365,8 @@
 
     // Afficher l'année dans un élément HTML
     document.addEventListener('DOMContentLoaded', () => {
+        const daty = document.getElementById('daty');
+            daty.innerText = getCurrentYear();
         const yearElement = document.getElementById('currentYear');
         if (yearElement) {
             yearElement.innerText = getCurrentYear();
@@ -375,7 +377,8 @@
     </body>
 <footer>
   <img src= "sary\logo-ministere-sante.jpg" alt="Logo-Ministere">
-  <br>©<p1 id="currentYear"></p1> Ministère de la Santé Pulblidue de Madagascar<br>
+  <br><p id="daty"></p>
+  © <p1 id="currentYear"></p1> Ministère de la Santé Pulblidue de Madagascar<br>
 <br>Direction de la Veille Sanitaire, de la Surveillance Epidémiologique et Riposte</p>
     <p><a href="#">Mentions légales</a> | <a href="#">Politique de confidentialité</a></p>
 </footer>

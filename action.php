@@ -24,7 +24,7 @@ if (isset($_POST['identifiant'], $_POST['Nom'], $_POST['Prenom'], $_POST['age'],
     date_default_timezone_set('Europe/Moscow');
     $date = date('y-m-d h:i:s');
 
-    $sql = "INSERT INTO client (Id, Nom, Prenom, Age, Genre, Type_client, Residence, date_de_sousmission) VALUES (:identifiant, :Nom, :Prenom, :age,:genre, :type_client, :adresse, :date)";
+    $sql = "INSERT INTO client (Id, Nom, Prenom, Age, Genre, Type, Residence, date_de_sousmission) VALUES (:identifiant, :Nom, :Prenom, :age,:genre, :type_client, :adresse, :date)";
     
     $stmt = $pdo->prepare($sql);
     $stmt->bindParam(':identifiant', $id);
@@ -36,8 +36,9 @@ if (isset($_POST['identifiant'], $_POST['Nom'], $_POST['Prenom'], $_POST['age'],
     $stmt->bindParam(':adresse', $adresse);
     $stmt->bindParam(':date' , $date);
     
-    if ($stmt->execute()) {
-        $resultat = "Enregistrement des Données dans la Base  $nom $prenom";
+    if ($stmt->execute())
+    {
+        $resultat = "Enregistrement des information dans la Base  $nom $prenom";
         echo "<script>alert('$resultat'); window.location.href = 'medicament.php';</script>";
     } else {
         echo "Erreur lors de l'ajout de l'enregistrement.";
