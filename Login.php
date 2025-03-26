@@ -46,14 +46,14 @@ border-radius: 10px;" id="myImage" name="myImage">
   </form>
   <br><br>
   <footer>
-  <img src= "sary\logo-ministere-sante.jpg" alt="Logo-Ministere">
+  <img src= "sary\Logo.png" alt="Logo-Ministere">
   <p> <script type="text/javascript"> 
 	  document.addEventListener('DOMContentLoaded', () => {
         const daty = document.getElementById('daty');
             daty.innerText = getCurrentYear();
     });
   </script>
-<p id="daty">©</p>
+©<p1 id="daty"></p1>
   Ministère de la Santé Pulblidue de Madagascar<br>
 <br>Direction de la Veille Sanitaire, de la Surveillance Epidémiologique et Riposte</p>
     <p><a href="#">Mentions légales</a> | <a href="#">Politique de confidentialité</a></p>
