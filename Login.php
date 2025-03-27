@@ -18,6 +18,7 @@ if (isset($_SESSION['error'])) {
 	<link rel="stylesheet" href="style.css">
   <script src="js/jquery.min.js"></script>
     <script src="js/bootstrap.min.js"></script>
+    <script src="js/scripts-page.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
@@ -47,12 +48,7 @@ border-radius: 10px;" id="myImage" name="myImage">
   <br><br>
   <footer>
   <img src= "sary\Logo.png" alt="Logo-Ministere">
-  <p> <script type="text/javascript"> 
-	  document.addEventListener('DOMContentLoaded', () => {
-        const daty = document.getElementById('daty');
-            daty.innerText = getCurrentYear();
-    });
-  </script>
+  <p> 
 ©<span id="currentYear"></span>
   Ministère de la Santé Pulblidue de Madagascar<br>
 <br>Direction de la Veille Sanitaire, de la Surveillance Epidémiologique et Riposte</p>

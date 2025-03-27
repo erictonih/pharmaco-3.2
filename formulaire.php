@@ -89,12 +89,8 @@
 	</form>
 </body>
 <footer>
-  <img src= "sary\logo-ministere-sante.jpg" alt="Logo-Ministere">
-  <p><script type="text/javascript"> 
-	  var today=new Date();
-  </script>©<script>
-	 console.log(today.getFullYear());
-  </script> Ministère de la Santé Pulblidue de Madagascar<br>
+  <img src= "sary\Logo.png" alt="Logo-Ministere">
+ <br> ©<span id="currentYear"></span> Ministère de la Santé Pulblidue de Madagascar<br>
 <br>Direction de la Veille Sanitaire, de la Surveillance Epidémiologique et Riposte</p>
     <p><a href="#">Mentions légales</a> | <a href="#">Politique de confidentialité</a></p>
 </footer>
