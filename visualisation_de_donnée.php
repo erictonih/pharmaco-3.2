@@ -336,41 +336,7 @@
                     }
                 }
             });
-            // Fonction pour obtenir la dernière date de modification de la page
-            function getLastModified() {
-                const lastModified = new Date(document.lastModified);
-                const options = { 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric', 
-                    hour: '2-digit', 
-                    minute: '2-digit', 
-                    second: '2-digit'
-                };
-                return lastModified.toLocaleDateString('fr-FR', options);
-            }
-
-            // Afficher la date de modification dans un élément HTML
-            document.addEventListener('DOMContentLoaded', () => {
-                const footerElements = document.querySelectorAll('#lastModified, #lastModified2, #lastModified3');
-                footerElements.forEach(element => {
-                    element.innerText = `Dernière modification : ${getLastModified()}`;
-                });
-            });
-
-            // Fonction pour récupérer l'année en cours
-            function getCurrentYear() {
-                const currentYear = new Date().getFullYear();
-                return currentYear;
-            }
-
-            // Afficher l'année dans un élément HTML
-            document.addEventListener('DOMContentLoaded', () => {
-                const yearElement = document.getElementById('currentYear');
-                if (yearElement) {
-                    yearElement.innerText = getCurrentYear();
-                }
-            });
+           
         </script>
     </div>
 </body>

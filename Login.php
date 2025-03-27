@@ -53,7 +53,7 @@ border-radius: 10px;" id="myImage" name="myImage">
             daty.innerText = getCurrentYear();
     });
   </script>
-©<p1 id="daty"></p1>
+©<span id="currentYear"></span>
   Ministère de la Santé Pulblidue de Madagascar<br>
 <br>Direction de la Veille Sanitaire, de la Surveillance Epidémiologique et Riposte</p>
     <p><a href="#">Mentions légales</a> | <a href="#">Politique de confidentialité</a></p>
