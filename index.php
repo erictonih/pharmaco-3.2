@@ -48,7 +48,7 @@ if (!isset($_SESSION["user_id"])) {
                             <a href="#" class="nav-link">Acceuil</a>
                         </li>
                         <li class="nav-item">
-                            <a href="#" class="nav-link">Service</a>
+                            <a href="visualisation_de_donnée.php" class="nav-link">Tableau de Bord</a>
                         </li>
                         <li class="nav-item">
                             <a href="#" class="nav-link">A propos</a>
