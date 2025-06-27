@@ -51,7 +51,7 @@ if (!isset($_SESSION["user_id"])) {
                             <a href="visualisation_de_donnée.php" class="nav-link">Tableau de Bord</a>
                         </li>
                         <li class="nav-item">
-                            <a href="#" class="nav-link">A propos</a>
+                            <a href="analyse.php" class="nav-link">Analyse</a>
                         </li>
                         <li class="nav-item">
                             <a href="#" class="nav-link">Contacts</a>
