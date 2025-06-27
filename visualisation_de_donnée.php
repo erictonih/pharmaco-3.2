@@ -6,7 +6,7 @@ ini_set('log_errors', 1);
 ini_set('error_log', 'error.log');
 
 // Connexion à la base de données
-$conn = new mysqli('sql109.infinityfree.com', 'if0_38923185', 'pharmaco24', 'if0_38923185_pharmacie');
+$conn = new mysqli('localhost', 'root', '', 'pharmacie');
 if ($conn->connect_error) {
     die("Connexion échouée : " . $conn->connect_error);
 }

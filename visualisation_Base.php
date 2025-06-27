@@ -1,5 +1,7 @@
 <html>
     <head>
+    <link rel="icon" href="sary/dvsser.jpg" type="image/jpg">
+    <meta charset ="UTF-8">
     <link href="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/style.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="bootstrap.min.css">
     <link rel="stylesheet" href="style.css">
@@ -119,8 +121,8 @@
     if ($result) {
         while ($row = $result->fetch_assoc()) {
          $mois = $row['mois'];
-         $type = $row['Type'];
-         $total = $row['total'];
+         $type = str_replace(['Antidiarrh�ique', 'Antipyr�tique'], ['Antidiarrhéique', 'Antipyrétique'], $row['Type']);
+         $total = (int)$row['total'];
 
          // Ajouter le mois et le type dans les listes uniques
          if (!in_array($mois, $all_months)) 

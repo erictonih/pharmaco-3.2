@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-	<title>PHARMACO_VIGILLANCE</title>
+	<title>Saisie de données</title>
+  <meta charset ="UTF-8">
+  <link rel="icon" href="sary/dvsser.jpg" type="image/jpg">
   <link rel="stylesheet" href="bootstrap.min.css">
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">

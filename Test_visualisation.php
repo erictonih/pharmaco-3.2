@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" href="sary/dvsser.jpg" type="image/jpg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Respresentation des résultats</title>
     <link href="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/style.min.css" rel="stylesheet" />

@@ -12,7 +12,10 @@ if (!isset($_SESSION["user_id"])) {
 <!DOCTYPE html>
 <html>
 <head>
-	<title>PHARMACO_VIGILLANCE</title>
+	<title>Acceuil</title>
+    <meta charset ="UTF-8">
+  <meta name="description" content="Page d'accueil de l'application de gestion des médicaments">
+    <link rel="icon" href="sary/dvsser.jpg" type="image/jpg">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
