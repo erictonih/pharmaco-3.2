@@ -1,3 +1,4 @@
 {
-    "php.debug.executablePath": ""
+    "php.debug.executablePath": "/usr/bin/php8.0",
+    "php.validate.executablePath": "/usr/bin/php8.0"
 }

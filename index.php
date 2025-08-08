@@ -3,7 +3,7 @@
 session_start();
 if (!isset($_SESSION["user_id"])) {
     // Utilisateur non connecté, redirection vers la page de connexion
-    header("Location: login.php");
+    header("Location: Login.php");
     exit(); // Assurez-vous de sortir du script après la redirection
 }
 
@@ -82,7 +82,7 @@ if (!isset($_SESSION["user_id"])) {
   </div>
 <footer>
   <img src= "sary\Logo.png" alt="Logo-Ministere"> <br>
-  <p> ©<span id="currentYear"></span> Ministère de la Santé Pulblidue de Madagascar<br>
+  <p>©<span id="currentYear"></span> Ministère de la Santé Pulblidue de Madagascar<br>
 <br>Direction de la Veille Sanitaire, de la Surveillance Epidémiologique et Riposte</p>
     <p><a href="#">Mentions légales</a> | <a href="#">Politique de confidentialité</a></p>
 </footer>
