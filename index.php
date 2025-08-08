@@ -54,7 +54,7 @@ if (!isset($_SESSION["user_id"])) {
                             <a href="analyse.php" class="nav-link">Analyse</a>
                         </li>
                         <li class="nav-item">
-                            <a href="#" class="nav-link">Contacts</a>
+                            <a href="tdc.php" class="nav-link">TDC</a>
                         </li>
                         <li class="nav-item">
                             <a href="logout.php" class="nav-link">Deconnection</a>

@@ -1,11 +1,12 @@
 <?php
-
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 //use function PHPSTORM_META\type;
 
 $servername = "localhost";
 $username = "root";
 $password = "";
-$dbname = "pharmacie";
+$dbname = "Pharmacie";
 
 $conn = new mysqli($servername, $username, $password, $dbname);
 

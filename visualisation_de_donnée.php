@@ -6,7 +6,7 @@ ini_set('log_errors', 1);
 ini_set('error_log', 'error.log');
 
 // Connexion à la base de données
-$conn = new mysqli('localhost', 'root', '', 'pharmacie');
+$conn = new mysqli('localhost', 'root', '', 'Pharmacie');
 if ($conn->connect_error) {
     die("Connexion échouée : " . $conn->connect_error);
 }
@@ -23,7 +23,7 @@ $medicaments = [];
 $total_medicaments = 0;
 if ($result_medicaments) {
     while ($row = $result_medicaments->fetch_assoc()) {
-        $type = str_replace(['Antidiarrh�ique', 'Antipyr�tique'], ['Antidiarrhéique', 'Antipyrétique'], $row['Type']);
+        $type = str_replace(['Antidiarrh�ique', 'AntidiarrhÃ©ique', 'AntipyrÃ©tique', 'Antipyr�tique'], ['Antidiarrhéique', 'Antidiarrhéique', 'Antipyrétique','Antipyrétique'], $row['Type']);
         $medicaments[] = [
             'Type' => $type,
             'Nombre' => (int)$row['Nombre']
@@ -65,7 +65,7 @@ $all_types = [];
 if ($result_medicaments_mois) {
     while ($row = $result_medicaments_mois->fetch_assoc()) {
         $mois = $row['Mois'];
-        $type = str_replace(['Antidiarrh�ique', 'Antipyr�tique'], ['Antidiarrhéique', 'Antipyrétique'], $row['Type']);
+        $type = str_replace(['Antidiarrh�ique', 'AntidiarrhÃ©ique', 'AntipyrÃ©tique', 'Antipyr�tique'], ['Antidiarrhéique', 'Antidiarrhéique', 'Antipyrétique','Antipyrétique'], $row['Type']);
         $total = (int)$row['Total'];
 
         $medicaments_mois[] = [
@@ -138,7 +138,7 @@ $conn->close();
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #f8f9fa;
+            background-color: #f8f9fad0;
         }
         .card {
             margin-bottom: 1.5rem;
@@ -152,12 +152,6 @@ $conn->close();
         .table th, .table td {
             vertical-align: middle;
         }
-        footer {
-            text-align: center;
-            padding: 20px;
-            background-color: #e9ecef;
-            margin-top: 20px;
-        }
         .card-stat {
             text-align: center;
             padding: 1.5rem;
@@ -168,7 +162,7 @@ $conn->close();
         }
         .card-stat p {
             margin: 0.5rem 0 0;
-            color: #6c757d;
+            color: #000000ff;
         }
         @media (max-width: 768px) {
             .card-stat h3 {

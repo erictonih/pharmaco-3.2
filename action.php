@@ -1,6 +1,8 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 $host = 'localhost';
-$dbname = 'pharmacie';
+$dbname = 'Pharmacie';
 $username = 'root';
 $password = '';
 
@@ -20,11 +22,12 @@ if (isset($_POST['identifiant'], $_POST['Nom'], $_POST['Prenom'], $_POST['age'],
     $age = $_POST['age'];
     $genre = $_POST['genre'];
     $type_client = $_POST['type_client'];
+    $district = $_POST['district'] ?? ''; 
     $adresse = $_POST['adresse'];
     date_default_timezone_set('Europe/Moscow');
     $date = date('y-m-d h:i:s');
 
-    $sql = "INSERT INTO client (Id, Nom, Prenom, Age, Genre, Type, Residence, date_de_sousmission) VALUES (:identifiant, :Nom, :Prenom, :age,:genre, :type_client, :adresse, :date)";
+    $sql = "INSERT INTO client (Id, Nom, Prenom, Age, Genre, Type, Residence, District, date_de_sousmission) VALUES (:identifiant, :Nom, :Prenom, :age,:genre, :type_client,:district, :adresse, :date)";
     
     $stmt = $pdo->prepare($sql);
     $stmt->bindParam(':identifiant', $id);
@@ -33,6 +36,7 @@ if (isset($_POST['identifiant'], $_POST['Nom'], $_POST['Prenom'], $_POST['age'],
     $stmt->bindParam(':age', $age);
     $stmt->bindParam(':genre', $genre);
     $stmt->bindParam(':type_client', $type_client);
+    $stmt->bindParam(':district', $district);
     $stmt->bindParam(':adresse', $adresse);
     $stmt->bindParam(':date' , $date);
     

@@ -71,7 +71,7 @@
                 </main>
 <?php
     // Connexion à la base de données
-    $conn = new mysqli('localhost', 'root', '', 'pharmacie');
+    $conn = new mysqli('localhost', 'root', '', 'Pharmacie');
     if ($conn->connect_error) {
         die("Connexion échouée : " . $conn->connect_error);
     }
