@@ -42,3 +42,48 @@ while ($row = $res->fetch_assoc()) {
 // Toujours renvoyer un tableau JSON (même vide)
 echo json_encode($data, JSON_UNESCAPED_UNICODE);
 ?>
+/*
+ * Exemple d'utilisation :
+ * POST ou GET avec les paramètres :
+ *  - rows: tableau des champs pour les lignes (ex: ["Genre"])
+ *  - cols: tableau des champs pour les colonnes (ex: ["TypeMedicament"])
+ *  - values: champ à agréger (ex: "Nombres")
+ *  - agg: fonction d'agrégation ("SUM", "COUNT", etc.)
+ */
+
+$rows = isset($_REQUEST['rows']) ? $_REQUEST['rows'] : ['Genre'];
+$cols = isset($_REQUEST['cols']) ? $_REQUEST['cols'] : ['TypeMedicament'];
+$value = isset($_REQUEST['values']) ? $_REQUEST['values'] : 'Nombres';
+$agg = isset($_REQUEST['agg']) ? strtoupper($_REQUEST['agg']) : 'SUM';
+
+// Sécurisation basique des champs
+$allowedFields = ['Id','Age','Genre','TypeClient','District','id_client','TypeMedicament','Nombres','mois'];
+foreach (array_merge($rows, $cols, [$value]) as $field) {
+    if (!in_array($field, $allowedFields)) {
+        echo json_encode(['error' => 'Invalid field: ' . $field], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+}
+
+// Construction dynamique de la requête
+$selectRows = implode(', ', $rows);
+$selectCols = implode(', ', $cols);
+$groupBy = implode(', ', array_merge($rows, $cols));
+$sqlPivot = "SELECT $selectRows, $selectCols, $agg($value) AS result
+             FROM client c
+             INNER JOIN medicament m ON c.Id = m.id_client
+             GROUP BY $groupBy";
+
+$resPivot = $conn->query($sqlPivot);
+
+if ($resPivot === false) {
+    echo json_encode(['error' => 'SQL error: ' . $conn->error], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+$pivotData = [];
+while ($row = $resPivot->fetch_assoc()) {
+    $pivotData[] = $row;
+}
+
+echo json_encode($pivotData, JSON_UNESCAPED_UNICODE);

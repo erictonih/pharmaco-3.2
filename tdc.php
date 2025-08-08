@@ -1,23 +1,226 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tableau croisé dynamique</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tableau croisé dynamique</title>
 
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pivottable/2.23.0/pivot.min.css">
-  <style>
-    body{font-family:Arial, Helvetica, sans-serif; margin:12px}
-    #controls{display:flex; gap:12px; align-items:center; margin-bottom:8px; flex-wrap:wrap}
-    #output{margin-top:10px}
-    .btn{padding:6px 10px;border-radius:6px;border:1px solid #888;cursor:pointer;background:#f5f5f5}
-    .small{font-size:0.9em}
-    #debug{margin-top:10px;padding:10px;border:1px dashed #bbb;background:#fafafa;white-space:pre-wrap;max-height:240px;overflow:auto}
-    label{display:inline-block;margin-right:6px}
-    select,input[type=text]{padding:4px}
-    #pivot-container{margin-top:10px}
-  </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pivottable/2.23.0/pivot.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+            margin: 18px;
+            background: #f4f6fb;
+            color: #222;
+        }
+        h2 {
+            color: #0d6efd;
+            margin-bottom: 18px;
+            letter-spacing: 0.5px;
+        }
+        #controls, #controls2 {
+            border: 1px solid #d0d7de;
+            background: #f8fafc;
+        }
+        #controls label, #controls2 label {
+            font-weight: 600;
+            color: #333;
+        }
+        #controls input[type=text], #controls select, #controls2 select {
+            border: 1px solid #b6c2d1;
+            background: #fff;
+            padding: 6px 10px;
+            border-radius: 5px;
+            font-size: 1em;
+            margin-right: 6px;
+        }
+        #controls input[type=text]:focus, #controls select:focus, #controls2 select:focus {
+            outline: 2px solid #0d6efd;
+            border-color: #0d6efd;
+        }
+        .btn {
+            font-weight: 500;
+            background: linear-gradient(90deg, #e3f2fd 80%, #cfe2ff 100%);
+            border: 1px solid #90caf9;
+            color: #0d6efd;
+        }
+        .btn:hover {
+            background: #d1e7dd;
+            border-color: #198754;
+            color: #198754;
+        }
+        #pivot-container {
+            border: 1px solid #d0d7de;
+            background: #fff;
+            box-shadow: 0 2px 8px #e3e3e3;
+        }
+        #meta {
+            font-size: 1.05em;
+            color: #0d6efd;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        #debug {
+            font-size: 0.97em;
+            color: #444;
+            background: #fffbe6;
+            border: 1px dashed #f7c873;
+        }
+        table.pvtTable th, table.pvtTable td {
+            font-size: 1em;
+            padding: 8px 10px;
+        }
+        table.pvtTable th {
+            background: #e2eafc;
+            color: #0d6efd;
+            font-weight: bold;
+        }
+        table.pvtTable td {
+            background: #f7fafd;
+        }
+        table.pvtTable tr:hover td {
+            background: #e9ecef;
+        }
+        #controls .small, #controls2 .small {
+            font-size: 0.98em;
+            color: #555;
+        }
+        #controls > div, #controls2 > div {
+            min-width: 180px;
+        }
+        @media (max-width: 700px) {
+            body {
+            margin: 4px;
+            }
+            h2 {
+            font-size: 1.2em;
+            }
+            #controls, #controls2 {
+            flex-direction: column;
+            gap: 8px;
+            padding: 6px 4px;
+            }
+            #pivot-container {
+            padding: 2px;
+            }
+            #meta {
+            font-size: 0.98em;
+            }
+            label, select, input[type=text] {
+            font-size: 0.97em;
+            }
+        }
+        #controls {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            background: #e9ecef;
+            padding: 10px 12px;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px #ddd;
+        }
+        #output {
+            margin-top: 14px;
+        }
+        .btn {
+            padding: 7px 12px;
+            border-radius: 6px;
+            border: 1px solid #888;
+            cursor: pointer;
+            background: linear-gradient(90deg, #f5f5f5 80%, #e2e2e2 100%);
+            transition: background 0.2s;
+        }
+        .btn:hover {
+            background: #d1e7dd;
+            border-color: #198754;
+            color: #198754;
+        }
+        .small {
+            font-size: 0.92em;
+            color: #555;
+        }
+        #debug {
+            margin-top: 12px;
+            padding: 12px;
+            border: 1px dashed #bbb;
+            background: #fdf6e3;
+            white-space: pre-wrap;
+            max-height: 260px;
+            overflow: auto;
+            font-size: 0.95em;
+            color: #444;
+            border-radius: 6px;
+        }
+        label {
+            display: inline-block;
+            margin-right: 8px;
+            font-weight: 500;
+        }
+        select, input[type=text] {
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            min-width: 80px;
+            background: #fff;
+        }
+        #pivot-container {
+            margin-top: 12px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 6px #eee;
+            padding: 10px;
+            min-height: 80px;
+        }
+        #meta {
+            margin-top: 4px;
+            margin-bottom: 2px;
+            color: #0d6efd;
+            font-weight: 500;
+        }
+        #controls2 {
+            margin-top: 8px;
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            flex-wrap: wrap;
+            background: #f1f3f5;
+            padding: 8px 10px;
+            border-radius: 6px;
+        }
+        @media (max-width: 700px) {
+            #controls, #controls2 {
+                flex-direction: column;
+                gap: 8px;
+            }
+            #pivot-container {
+                padding: 4px;
+            }
+        }
+        table.pvtTable {
+            border-collapse: collapse;
+            width: 100%;
+            background: #fff;
+            font-size: 0.98em;
+        }
+        table.pvtTable th, table.pvtTable td {
+            border: 1px solid #bbb;
+            padding: 6px 8px;
+            text-align: center;
+        }
+        table.pvtTable th {
+            background: #e2eafc;
+            font-weight: bold;
+        }
+        table.pvtTable tr:nth-child(even) td {
+            background: #f7fafd;
+        }
+        table.pvtTable tr:hover td {
+            background: #e9ecef;
+        }
+    </style>
 </head>
 <body>
   <h2>Tableau croisé dynamique</h2>
