@@ -1,177 +1,307 @@
 <?php
-    session_start(); // Démarrer la session
-    // Afficher le message d'erreur s'il est présent
-    if (isset($_SESSION['error'])) 
-        {
-          echo '<p style="color: red;">' . $_SESSION['error'] . '</p>';
-          unset($_SESSION['error']); //Supprimer le message d'erreur de la session
-        }
+session_start();
+if (isset($_SESSION["user_id"])) {
+    header("Location: index.php");
+    exit();
+}
+if (isset($_SESSION['error'])) {
+    $error_msg = $_SESSION['error'];
+    unset($_SESSION['error']);
+}
 ?>
 <!DOCTYPE html>
-    <html>
-        <head>
-	          <title>Connexion</title>
-            <link rel="icon" href="sary/dvsser.jpg" type="image/jpg">
-            <meta charset ="UTF-8">
-            <meta http-equiv="X-UA-Compatible" content="IE=edge">
-            <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <link rel="stylesheet" href="bootstrap.min.css">
-	          <link rel="stylesheet" href="style.css">
-            <script src="js/jquery.min.js"></script>
-            <script src="js/bootstrap.min.js"></script>
-            <script src="js/scripts-page.js"></script>
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <style>
-                    body {
-                          margin: 0;
-                          padding: 0;
-                          overflow: hidden;
-                          background: radial-gradient(ellipse at bottom, #0a0a1f 0%, #000000 100%);
-                          }
-                    .stars, .stars2, .stars3 {
-                          position: absolute;
-                          top: 0;
-                          left: 0;
-                          width: 1px;
-                          height: 1px;
-                          background: transparent;
-                          z-index: -1;
-                          }
-                    .stars {
-                          box-shadow:
-                                  100px 200px #e0e0ff,
-                                  300px 400px #e0e0ff,
-                                  500px 100px #e0e0ff,
-                                  700px 300px #e0e0ff,
-                                  900px 600px #e0e0ff,
-                                  200px 700px #e0e0ff,
-                                  400px 800px #e0e0ff,
-                                  600px 900px #e0e0ff,
-                                  800px 200px #e0e0ff,
-                                  1000px 500px #e0e0ff;
-                            animation: animStar 50s linear infinite;
-                            }
-                      .stars2 {
-                            box-shadow:
-                                  150px 250px #ccccff,
-                                  350px 450px #ccccff,
-                                  550px 150px #ccccff,
-                                  750px 350px #ccccff,
-                                  950px 650px #ccccff,
-                                  250px 750px #ccccff,
-                                  450px 850px #ccccff,
-                                  650px 950px #ccccff,
-                                  850px 250px #ccccff,
-                                  1050px 550px #ccccff;
-                            animation: animStar 80s linear infinite;
-                              }
-                      .stars3 {
-                            box-shadow:
-                                  50px 150px #b3b3ff,
-                                  250px 350px #b3b3ff,
-                                  450px 50px #b3b3ff,
-                                  650px 250px #b3b3ff,
-                                  850px 550px #b3b3ff,
-                                  150px 650px #b3b3ff,
-                                  350px 750px #b3b3ff,
-                                  550px 850px #b3b3ff,
-                                  750px 150px #b3b3ff,
-                                  950px 450px #b3b3ff;
-                              animation: animStar 100s linear infinite;
-                                }
-                          @keyframes animStar {
-                                      from {
-                                            transform: translateY(0px);
-                                          }
-                                      to {
-                                            transform: translateY(-2000px);
-                                          }
-                                              }
-                    .supernova {
-                              position: absolute;
-                              width: 4px;
-                              height: 4px;
-                              border-radius: 50%;
-                              background: radial-gradient(circle, #ffffff, #ffffcc, #ffcc99, #ff9999);
-                              animation: supernovaAnim 4s ease-in-out infinite alternate;
-                              top: 500px;
-                              left: 600px;
-                              z-index: -1;
-                                  }
-                          @keyframes supernovaAnim {
-                              0% { transform: scale(1); opacity: 0.8; }
-                              50% { transform: scale(3); opacity: 1; }
-                              100% { transform: scale(1); opacity: 0.8; }
-                                                    }
-                    .nebula {
-                              position: absolute;
-                              width: 500px;
-                              height: 500px;
-                              background: radial-gradient(circle, rgba(255, 100, 200, 0.2), transparent 70%);
-                              filter: blur(60px);
-                              animation: floatNebula 60s ease-in-out infinite alternate;
-                              z-index: -1;
-                                }
-                    .ciel{      
-                          background: radial-gradient(circle, rgba(255, 100, 200, 0.2), transparent 70%);
-                          filter: blur(60px);
-                          animation: floatNebula 60s ease-in-out infinite alternate;
-                          z-index: -1;
-                        }
-    .nebula:nth-child(5) {
-      top: 200px;
-      left: 300px;
+<html lang="fr" data-theme="light">
+<head>
+    <title>Connexion — DVSSER</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="sary/dvsser.jpg" type="image/jpg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+    :root {
+        --accent: #0a6cbc;
+        --accent-soft: #e8f2fb;
+        --text-primary: #0d1b2a;
+        --text-secondary: #4a5568;
+        --text-muted: #8a99aa;
+        --border: #e2eaf2;
+        --bg: #f0f4f8;
+        --bg-card: #ffffff;
     }
-    .nebula:nth-child(6) {
-      top: 600px;
-      left: 800px;
+    [data-theme="dark"] {
+        --accent: #3b9ede;
+        --accent-soft: #1a2f45;
+        --text-primary: #e8f0fb;
+        --text-secondary: #a0b4cc;
+        --text-muted: #5a7080;
+        --border: #1e2e42;
+        --bg: #0f1923;
+        --bg-card: #1a2535;
     }
-    @keyframes floatNebula {
-      0% { transform: scale(1) translateY(0); }
-      50% { transform: scale(1.2) translateY(-20px); }
-      100% { transform: scale(1) translateY(0); }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        font-family: 'DM Sans', sans-serif;
+        background: radial-gradient(ellipse at bottom, #0a0a1f 0%, #061525 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        position: relative;
+        overflow: hidden;
     }
-  </style>
+
+    /* Étoiles */
+    .stars, .stars2 {
+        position: fixed; top:0; left:0; width:1px; height:1px; z-index:0;
+        background:transparent;
+        animation: animStar 60s linear infinite;
+    }
+    .stars {
+        box-shadow: 120px 200px #e0e0ff, 350px 80px #e0e0ff, 600px 300px #e0e0ff,
+                    900px 150px #e0e0ff, 200px 500px #e0e0ff, 700px 600px #e0e0ff,
+                    400px 750px #e0e0ff, 1100px 400px #e0e0ff, 50px 900px #e0e0ff,
+                    850px 850px #e0e0ff, 1300px 200px #e0e0ff, 1500px 650px #e0e0ff;
+    }
+    .stars2 {
+        box-shadow: 80px 350px #b3b3ff, 450px 150px #b3b3ff, 700px 450px #b3b3ff,
+                    1000px 250px #b3b3ff, 300px 650px #b3b3ff, 550px 900px #b3b3ff,
+                    1200px 100px #b3b3ff, 150px 800px #b3b3ff;
+        animation-duration: 90s;
+    }
+    @keyframes animStar {
+        from { transform: translateY(0); }
+        to   { transform: translateY(-1000px); }
+    }
+
+    .login-wrap {
+        position: relative;
+        z-index: 10;
+        width: 100%;
+        max-width: 420px;
+    }
+
+    .login-card {
+        background: rgba(26, 37, 53, 0.92);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(59, 158, 222, 0.2);
+        border-radius: 20px;
+        padding: 40px 36px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+
+    .login-logo {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 32px;
+        text-align: center;
+    }
+
+    .login-logo img {
+        width: 64px; height: 64px;
+        object-fit: contain;
+        border-radius: 16px;
+        background: rgba(59,158,222,0.15);
+        padding: 10px;
+    }
+
+    .login-logo .app-name {
+        font-family: 'Syne', sans-serif;
+        font-weight: 800;
+        font-size: 1.3rem;
+        color: #3b9ede;
+        letter-spacing: -0.02em;
+    }
+
+    .login-logo .app-sub {
+        font-size: 0.75rem;
+        color: rgba(255,255,255,0.45);
+        line-height: 1.4;
+    }
+
+    .error-msg {
+        background: rgba(229,83,83,0.15);
+        border: 1px solid rgba(229,83,83,0.3);
+        border-radius: 10px;
+        padding: 10px 14px;
+        color: #f87171;
+        font-size: 0.85rem;
+        margin-bottom: 18px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: rgba(255,255,255,0.5);
+        margin-bottom: 6px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 12px 14px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 10px;
+        color: #e8f0fb;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 0.9rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        outline: none;
+    }
+
+    .form-input:focus {
+        border-color: #3b9ede;
+        box-shadow: 0 0 0 3px rgba(59,158,222,0.15);
+    }
+
+    .form-input::placeholder { color: rgba(255,255,255,0.25); }
+
+    .forgot-link {
+        display: block;
+        text-align: right;
+        font-size: 0.78rem;
+        color: rgba(59,158,222,0.7);
+        text-decoration: none;
+        margin-top: -8px;
+        margin-bottom: 22px;
+        transition: color 0.2s;
+    }
+    .forgot-link:hover { color: #3b9ede; }
+
+    .submit-btn {
+        width: 100%;
+        padding: 13px;
+        background: linear-gradient(135deg, #0a6cbc, #3b9ede);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-family: 'Syne', sans-serif;
+        font-size: 0.95rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 4px 20px rgba(10,108,188,0.4);
+    }
+
+    .submit-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 28px rgba(10,108,188,0.55);
+    }
+
+    .theme-toggle-login {
+        position: fixed;
+        top: 16px; right: 16px;
+        z-index: 20;
+        width: 38px; height: 38px;
+        border-radius: 9px;
+        border: 1px solid rgba(255,255,255,0.15);
+        background: rgba(26,37,53,0.8);
+        backdrop-filter: blur(8px);
+        color: rgba(255,255,255,0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: all 0.2s;
+    }
+    .theme-toggle-login:hover { border-color: #3b9ede; color: #3b9ede; }
+
+    .login-footer {
+        text-align: center;
+        margin-top: 28px;
+        font-size: 0.72rem;
+        color: rgba(255,255,255,0.25);
+        line-height: 1.6;
+    }
+    </style>
 </head>
 <body>
+
 <div class="stars"></div>
-  <div class="stars2"></div>
-  <div class="stars3"></div>
-  <div class="supernova"></div>
-  <div class="nebula"></div>
-  <div class="nebula"></div>
-<h1 style="text-decoration-color: green;">SURVEILLANCE AU NIVEAU PHARMACIE<br>
-<img src="sary\icone1.png"
-style="text-align: center;
-width: 70px;
-height: 70px;
-border-radius: 10px;" id="myImage" name="myImage">
-</h1>  
+<div class="stars2"></div>
+
+<button class="theme-toggle-login" id="themeBtn" title="Changer le thème">
+    <i class="bi bi-moon-stars" id="themeIcon"></i>
+</button>
+
+<div class="login-wrap">
+    <div class="login-card">
+
+        <div class="login-logo">
+            <img src="sary/icone1.png" alt="DVSSER">
+            <span class="app-name">DVSSER</span>
+            <span class="app-sub">Surveillance au niveau pharmacie<br>Ministère de la Santé Publique de Madagascar</span>
+        </div>
+
+        <?php if (!empty($error_msg)): ?>
+        <div class="error-msg">
+            <i class="bi bi-exclamation-triangle"></i>
+            <?php echo htmlspecialchars($error_msg); ?>
+        </div>
+        <?php endif; ?>
+
+        <form method="post" action="utilisateur.php">
+
+            <div class="form-group">
+                <label class="form-label" for="username">Nom d'utilisateur</label>
+                <input type="text" id="username" name="username" class="form-input"
+                       placeholder="Entrez votre identifiant" required autocomplete="username">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="password">Mot de passe</label>
+                <input type="password" id="password" name="password" class="form-input"
+                       placeholder="Entrez votre mot de passe" required autocomplete="current-password">
+            </div>
+
+            <a href="#" class="forgot-link" onclick="alert('Veuillez contacter votre administrateur système : 034 03 887 72'); return false;">
+                Mot de passe oublié ?
+            </a>
+
+            <button type="submit" class="submit-btn">
+                <i class="bi bi-box-arrow-in-right"></i> Se connecter
+            </button>
+
+        </form>
+
+    </div>
+
+    <div class="login-footer">
+        &copy;<span id="yr"></span> Ministère de la Santé Publique de Madagascar<br>
+        Direction de la Veille Sanitaire, de la Surveillance Épidémiologique et Riposte
+    </div>
+</div>
+
 <script>
-  function mdp(){
-    alert("veuiller contacter votre administrateur système<br> 034 03 887 72");
-     window.location.href ="login.php";
-  }
-  </script>
-  <form method="post" action="utilisateur.php" style="margin-top: 50px;">
-    <label for="username">Nom d'utilisateur:</label>
-    <input type="text" id="username" name="username"><br><br>
-    <label for="password">Mot de passe:</label>
-    <input type="password" id="password" name="password">
-    <a href="#" style="text-align: right;" id="mdpoublier" onclick="mdp()">mot de passe oublier?</a>
-    <br><br>
-    <input type="submit" value="Se connecter">
-    
-  </form>
-  <br><br>
-<footer>
-  <img src= "sary\Logo.png" alt="Logo-Ministere">
-  <p> 
-  ©<span id="currentYear"></span>
-  Ministère de la Santé Publique de Madagascar<br>
-  <br>Direction de la Veille Sanitaire, de la Surveillance Epidémiologique et Riposte</p>
-    <p><a href="#">Mentions légales</a> | <a href="#">Politique de confidentialité</a></p>
-</footer>
+document.getElementById('yr').textContent = new Date().getFullYear();
+var html = document.documentElement;
+var btn  = document.getElementById('themeBtn');
+var icon = document.getElementById('themeIcon');
+var t = localStorage.getItem('dvsser-theme') || 'dark';
+html.setAttribute('data-theme', t);
+icon.className = t==='dark' ? 'bi bi-sun' : 'bi bi-moon-stars';
+btn.addEventListener('click', function(){
+    var next = html.getAttribute('data-theme')==='light' ? 'dark' : 'light';
+    html.setAttribute('data-theme', next);
+    localStorage.setItem('dvsser-theme', next);
+    icon.className = next==='dark' ? 'bi bi-sun' : 'bi bi-moon-stars';
+});
+</script>
 </body>
 </html>
