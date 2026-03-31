@@ -1,99 +1,109 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-	<title>Saisie de données</title>
-  <meta charset ="UTF-8">
-  <link rel="icon" href="sary/dvsser.jpg" type="image/jpg">
-  <link rel="stylesheet" href="bootstrap.min.css">
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
-    <script src="js/jquery.min.js"></script>
-    <script src="js/bootstrap.min.js"></script>
-	<style>
-	header {
-      background-color: #333;
-      color: #fff;
-      padding: 20px;
-    }
-    h1 {
-      margin: 0;
-    }
-	</style>
- <script src="jquery.js"></script>
-</head>
-<body>
-<header>
-<div id="myImage">
-<img src="sary\icone1.png">
-</div>
-    <h2>Pharmaco-Vigillance</h2>
-    <body>
-<div class="c1 container-fluid text-light pb-5 clearfix pl-0 mt-0">
-        <nav class="nav navbar navbar-dark navbar-expand-md">
-            <div class="container d-flex">
-                <div class="collapse navbar-collapse ml-auto float-right" id="nv35">
-                    <ul class="navbar-nav ">
-                        <li class="nav-item">
-                            <a href="#" class="nav-link">Acceuil</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#" class="nav-link">Service</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#" class="nav-link">A propos</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#" class="nav-link">Contacts</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="logout.php" class="nav-link">Deconnection</a>
-                        </li>
-                    </ul>
-                </div>
-                
+<?php
+session_start();
+if (!isset($_SESSION["user_id"])) {
+    header("Location: Login.php");
+    exit();
+}
+
+$page_title = 'Saisie de données';
+$active_page = 'formulaire';
+$breadcrumb = ['Accueil' => 'index.php', 'Saisie de données' => ''];
+include 'sidebar.php';
+?>
+
+    <div class="dv-content dv-animate">
+
+        <div class="dv-page-header">
+            <h1><i class="bi bi-pencil-square" style="color:var(--accent);margin-right:8px;"></i>Saisie de données</h1>
+            <div class="dv-breadcrumb">
+                <a href="index.php">Accueil</a>
+                <i class="bi bi-chevron-right" style="font-size:0.65rem;"></i>
+                <span>Saisie de données</span>
             </div>
-        </nav>
-</div>
-  </header><br><br>
-	<form method="POST" action="action.php">
-  <div class="titre" >Veillez saisisser les information concernants le client</div>
-    <br>
-		<label for="id">Identifiant :</label>
+        </div>
 
-    <input type="text" id="id" name="identifiant" >
+        <div class="dv-alert dv-alert-info dv-animate dv-animate-d1">
+            <i class="bi bi-info-circle"></i>
+            Veuillez remplir les informations concernant le client. Les champs marqués <strong>*</strong> sont obligatoires.
+        </div>
 
-		<label for="Nom">Nom :</label>
-		<input type="text" id="Nom" name="Nom" required>
+        <form method="POST" action="action.php">
 
-		<label for="Prenom">Prenom :</label>
-		<input type="text" id="Prenom" name="Prenom" required>
+            <div class="dv-card dv-animate dv-animate-d1">
+                <div class="dv-card-header">
+                    <i class="bi bi-person"></i> Informations du client
+                </div>
 
-    <label for="age">Age :</label>
-		<input type="number" id="age" name="age" required>
-    <br>    <br>  
-		<label for="genre">Genre :</label>
-		<select id="genre" name="genre" placeholder="Sexe du client">
-      <option value="Inconnue"></option>
-      <option value="Masculin">Masculin</option>
-			<option value="Feminin">Feminin</option>
-		</select><br>
-    <p1>Séléctionnée le type de client:</p1>
-      <br>
-        <input type="radio" id="type_Amb" name="type_client" style="font-family: Times New Roman, serif" value="Ambulatoire">
-        <label for="type_Amb">Ambulatoire</label>
-        <input type="radio" id="type_Hosp" name="type_client" value="Hospitalisé">
-        <label for="type_Hosp">Hospitalisé(e)</label><br>
-    <label for="adresse">Résidence :</label>
-		<input type="text" id="adresse" name="adresse" required>
-    <br>
-   	<input type="submit" value="Envoyer">
-	</form>
-</body>
-<footer>
-  <img src= "sary\Logo.png" alt="Logo-Ministere">
- <br> ©<span id="currentYear"></span> Ministère de la Santé Pulblidue de Madagascar<br>
-<br>Direction de la Veille Sanitaire, de la Surveillance Epidémiologique et Riposte</p>
-    <p><a href="#">Mentions légales</a> | <a href="#">Politique de confidentialité</a></p>
-</footer>
-</html>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:18px;">
+
+                    <div class="dv-form-group">
+                        <label class="dv-label" for="id">Identifiant</label>
+                        <input type="text" id="id" name="identifiant" class="dv-input" placeholder="Ex : 110923001">
+                    </div>
+
+                    <div class="dv-form-group">
+                        <label class="dv-label" for="Nom">Nom <span style="color:#e55353;">*</span></label>
+                        <input type="text" id="Nom" name="Nom" class="dv-input" required placeholder="Nom de famille">
+                    </div>
+
+                    <div class="dv-form-group">
+                        <label class="dv-label" for="Prenom">Prénom <span style="color:#e55353;">*</span></label>
+                        <input type="text" id="Prenom" name="Prenom" class="dv-input" required placeholder="Prénom(s)">
+                    </div>
+
+                    <div class="dv-form-group">
+                        <label class="dv-label" for="age">Âge <span style="color:#e55353;">*</span></label>
+                        <input type="number" id="age" name="age" class="dv-input" required placeholder="Ex : 32" min="0" max="150">
+                    </div>
+
+                    <div class="dv-form-group">
+                        <label class="dv-label" for="genre">Genre</label>
+                        <select id="genre" name="genre" class="dv-select">
+                            <option value="">— Sélectionner —</option>
+                            <option value="Masculin">Masculin</option>
+                            <option value="Feminin">Féminin</option>
+                            <option value="Inconnue">Inconnu(e)</option>
+                        </select>
+                    </div>
+
+                    <div class="dv-form-group">
+                        <label class="dv-label" for="adresse">Résidence <span style="color:#e55353;">*</span></label>
+                        <input type="text" id="adresse" name="adresse" class="dv-input" required placeholder="Adresse / Quartier">
+                    </div>
+
+                    <div class="dv-form-group">
+                        <label class="dv-label" for="district">District</label>
+                        <input type="text" id="district" name="district" class="dv-input" placeholder="Ex : Andramasina">
+                    </div>
+
+                </div>
+
+                <div class="dv-form-group" style="margin-top:8px;">
+                    <label class="dv-label">Type de client <span style="color:#e55353;">*</span></label>
+                    <div class="dv-radio-group">
+                        <label class="dv-radio-label">
+                            <input type="radio" name="type_client" value="Ambulatoire" required>
+                            <span>Ambulatoire</span>
+                        </label>
+                        <label class="dv-radio-label">
+                            <input type="radio" name="type_client" value="Hospitalisé">
+                            <span>Hospitalisé(e)</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:12px; justify-content:flex-end;" class="dv-animate dv-animate-d2">
+                <a href="index.php" class="dv-btn dv-btn-outline">
+                    <i class="bi bi-x-lg"></i> Annuler
+                </a>
+                <button type="submit" class="dv-btn dv-btn-primary">
+                    <i class="bi bi-send"></i> Enregistrer
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+
+<?php include 'footer_shared.php'; ?>
