@@ -1,167 +1,135 @@
 <?php
-    error_reporting(E_ALL);
-    ini_set('display_errors', 1);
-    // Connexion à la base de données
-    $servername = "localhost";
-    $username = "root";
-    $password = "";
-    $dbname = "Pharmacie";
+session_start();
+if (!isset($_SESSION["user_id"])) {
+    header("Location: Login.php");
+    exit();
+}
 
-    $conn = new mysqli($servername, $username, $password, $dbname);
+// Connexion
+$servername = 'sql209.infinityfree.com';
+$dbname     = 'if0_41511897_pharmacie';
+$username   = 'if0_41511897';
+$password   = 'jR9A6jlS7c8f8r';
 
-    if ($conn->connect_error) {
-      die("Connection failed: " . $conn->connect_error);
-    }
+$dernierIdentifiant = '';
+$dernierNom = '';
+$dernierPrenom = '';
+
+$conn = new mysqli($servername, $username, $password, $dbname);
+if (!$conn->connect_error) {
+    $conn->set_charset('utf8mb4');
     $sql = "SELECT Id, Nom, Prenom FROM client ORDER BY date_de_sousmission DESC LIMIT 1";
     $result = $conn->query($sql);
-
-if ($result->num_rows > 0) {
-    $row = $result->fetch_assoc();
-    $dernierIdentifiant = $row["Id"];
-    $dernierNom = $row["Nom"];
-    $dernierPrenom = $row["Prenom"];
-} else {
-    
+    if ($result && $result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        $dernierIdentifiant = $row["Id"];
+        $dernierNom  = $row["Nom"];
+        $dernierPrenom = $row["Prenom"];
+    }
+    $conn->close();
 }
+
+$page_title  = 'Saisie médicaments';
+$active_page = 'formulaire';
+$breadcrumb  = ['Accueil' => 'index.php', 'Saisie médicaments' => ''];
+include 'sidebar.php';
 ?>
-<!DOCTYPE html>
-<html>
-<head>
-	<title>PHARMACO_VIGILLANCE</title>
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="bootstrap.min.css">
-    <link rel="stylesheet" href="style.css">
-    <script src="js/jquery.min.js"></script>
-    <script src="js/bootstrap.min.js"></script>
-	<style>
-	header {
-      background-color: #333;
-      color: #fff;
-      padding: 20px;
-    }
-    h1 {
-      margin: 0;
-    }
-	</style>
- <script src="jquery.js"></script>
-</head>
-<body>
-<header>
-<div class="c2 container-fluid text-light pb-5 clearfix pl-0 mt-0">
-        <nav class="nav navbar navbar-dark navbar-expand-md">
-            <div class="container d-flex">
-                <button class="navbar-toggler" data-toggle="collapse" data-target="#nv35">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse ml-auto float-right" id="nv35">
-                    <ul class="navbar-nav ">
-                        <li class="nav-item" id="myImage">
-                            <img src="sary\icone1.png">
-                        </li>
-                        <li class="nav-item">
-                            <a href="#" class="nav-link">Acceuil</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#" class="nav-link">Service</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#" class="nav-link">A propos</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#" class="nav-link">Contacts</a>
-                        </li>
-                    </ul>
-                </div>
-                
-            </div>
-        </nav>
-</div>
-</header>
 
-<form method="POST" action="traitement-medoc.php">
-  <div class="titre" >Information du Client:</div>
-    <br>
-		<label for="id">Identifiant :</label>
-    <input type="text" id="id" placeholder="<?php echo "$dernierIdentifiant"?>">
-        <label for="Nom">Nom :</label>
-		<input type="text" id="Nom" placeholder="<?php echo "$dernierNom"?>">
+    <div class="dv-content dv-animate">
 
-		<label for="message">Prenom :</label>
-		<input type="text" id="Prenom" placeholder="<?php echo "$dernierPrenom"?>">
-
-        <p>Type de médicament acheté :</p>
-        
-        <div class="checkbox-group">
-            <input type="checkbox" id="Anti" name="type_medoc[]" value="Antibiotique" data-target="sousQuestionAutre_Anti">
-            <label for="Anti">Antibiotique</label>
-            
-            <div class="sous-question" id="sousQuestionAutre_Anti" style="display:none">
-                <label for="autreQuestion_Anti">Nombre de plaquettes pour Antibiotique : </label>
-                <input type="number" id="autreQuestion_Anti" name="autre_question_Antibiotique">
-            </div>
-        
-            <input type="checkbox" id="Antipy" name="type_medoc[]" value="Antipyrétique" data-target="sousQuestionAutre_Antipy">
-            <label for="Antipy">Antipyrétique</label>
-            
-            <div class="sous-question" id="sousQuestionAutre_Antipy" style="display:none">
-                <label for="autreQuestion_Antipy">Nombre de plaquettes pour Antipyrétique : </label>
-                <input type="number" id="autreQuestion_Antipy" name="autre_question_Antipyrétique">
-            </div>
-        
-            <input type="checkbox" id="Anta" name="type_medoc[]" value="Antalgique" data-target="sousQuestionAutre_Anta">
-            <label for="Anta">Antalgique</label>
-            
-            <div class="sous-question" id="sousQuestionAutre_Anta" style="display:none">
-                <label for="autreQuestion_Anta">Nombre de plaquettes pour Antalgique : </label>
-                <input type="number" id="autreQuestion_Anta" name="autre_question_Antalgique">
-            </div>
-        
-            <input type="checkbox" id="Antidi" name="type_medoc[]" value="Antidiarrhéique" data-target="sousQuestionAntidi">
-            <label for="Antidi">Antidiarrhéique</label>
-            
-            <div class="sous-question" id="sousQuestionAntidi" style="display:none">
-                <label for="autreQuestionAntidi">Nombre de plaquettes pour Antidiarrhéique : </label>
-                <input type="number" id="autreQuestionAntidi" name="autre_question_Antidiarrhéique">
-            </div>
-        
-            <input type="checkbox" id="Vit" name="type_medoc[]" value="VitamineC" data-target="sousQuestionAutre_Vit">
-            <label for="Vit">Vitamine C</label>
-            
-            <div class="sous-question" id="sousQuestionAutre_Vit" style="display:none">
-                <label for="autreQuestion_Vit">Nombre de plaquettes pour Vitamine C : </label>
-                <input type="number" id="autreQuestion_Vit" name="autre_question_VitamineC">
+        <div class="dv-page-header">
+            <h1><i class="bi bi-capsule" style="color:var(--accent);margin-right:8px;"></i>Saisie des médicaments</h1>
+            <div class="dv-breadcrumb">
+                <a href="index.php">Accueil</a>
+                <i class="bi bi-chevron-right" style="font-size:0.65rem;"></i>
+                <span>Médicaments</span>
             </div>
         </div>
-   	<input type="submit" value="Envoyer">
-	</form>
-    <script>
-        // Afficher la sous-question appropriée lorsque des cases sont cochées
-        const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-        const sousQuestions = document.querySelectorAll('.sous-question');
 
-        checkboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', function() {
-                const sousQuestionId = this.getAttribute('data-target');
-                const sousQuestion = document.getElementById(sousQuestionId);
-                
-                if (this.checked) {
-                    sousQuestion.style.display = 'block';
-                } else {
-                    sousQuestion.style.display = 'none';
-                }
-            });
-        });
-    </script>
-<footer>
-  <img src= "sary\logo-ministere-sante.jpg" alt="Logo-Ministere">
-  <p><script type="text/javascript"> 
-	  var today=new Date();
-  </script>©<script>
-	 console.log(today.getFullYear());
-  </script>Ministère de la Santé Pulblidue de Madagascar<br>
-<br>Direction de la Veille Sanitaire, de la Surveillance Epidémiologique et Riposte</p>
-    <p><a href="#">Mentions légales</a> | <a href="#">Politique de confidentialité</a></p>
-</footer>
-</html>
+        <!-- Info client -->
+        <div class="dv-card dv-animate dv-animate-d1">
+            <div class="dv-card-header">
+                <i class="bi bi-person-check"></i> Client enregistré
+            </div>
+            <div style="display:flex; gap:24px; flex-wrap:wrap;">
+                <div>
+                    <div class="dv-stat-label">Identifiant</div>
+                    <div style="font-family:'Syne',sans-serif; font-weight:700; color:var(--accent);"><?php echo htmlspecialchars($dernierIdentifiant ?: '—'); ?></div>
+                </div>
+                <div>
+                    <div class="dv-stat-label">Nom</div>
+                    <div style="font-weight:600; color:var(--text-primary);"><?php echo htmlspecialchars($dernierNom ?: '—'); ?></div>
+                </div>
+                <div>
+                    <div class="dv-stat-label">Prénom</div>
+                    <div style="font-weight:600; color:var(--text-primary);"><?php echo htmlspecialchars($dernierPrenom ?: '—'); ?></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Formulaire médicaments -->
+        <form method="POST" action="traitement-medoc.php">
+
+            <div class="dv-card dv-animate dv-animate-d1">
+                <div class="dv-card-header">
+                    <i class="bi bi-clipboard2-pulse"></i> Type(s) de médicament(s) achetés
+                </div>
+
+                <div class="dv-checkbox-group">
+
+                    <?php
+                    $medicaments = [
+                        'Antibiotique'    => ['id' => 'Anti',   'field' => 'autre_question_Antibiotique'],
+                        'Antipyrétique'   => ['id' => 'Antipy', 'field' => 'autre_question_Antipyrétique'],
+                        'Antalgique'      => ['id' => 'Anta',   'field' => 'autre_question_Antalgique'],
+                        'Antidiarrhéique' => ['id' => 'Antidi', 'field' => 'autre_question_Antidiarrhéique'],
+                        'VitamineC'       => ['id' => 'Vit',    'field' => 'autre_question_VitamineC'],
+                    ];
+                    $labels = [
+                        'Antibiotique'    => 'Antibiotique',
+                        'Antipyrétique'   => 'Antipyrétique',
+                        'Antalgique'      => 'Antalgique',
+                        'Antidiarrhéique' => 'Antidiarrhéique',
+                        'VitamineC'       => 'Vitamine C',
+                    ];
+                    foreach ($medicaments as $val => $info):
+                    ?>
+                    <div class="dv-checkbox-item" style="flex-direction:column; align-items:flex-start;">
+                        <label class="dv-radio-label">
+                            <input type="checkbox"
+                                   id="<?php echo $info['id']; ?>"
+                                   name="type_medoc[]"
+                                   value="<?php echo $val; ?>"
+                                   onchange="toggleSub('sub_<?php echo $info['id']; ?>', this.checked)">
+                            <span><?php echo $labels[$val]; ?></span>
+                        </label>
+                        <div class="dv-sub-field" id="sub_<?php echo $info['id']; ?>">
+                            <label class="dv-label">Nombre de plaquettes :</label>
+                            <input type="number" name="<?php echo $info['field']; ?>" class="dv-input" min="0" style="max-width:180px;" placeholder="0">
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+
+                </div>
+            </div>
+
+            <div style="display:flex; gap:12px; justify-content:flex-end;" class="dv-animate dv-animate-d2">
+                <a href="formulaire.php" class="dv-btn dv-btn-outline">
+                    <i class="bi bi-arrow-left"></i> Retour
+                </a>
+                <button type="submit" class="dv-btn dv-btn-primary">
+                    <i class="bi bi-send"></i> Enregistrer
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+
+<script>
+function toggleSub(id, show){
+    document.getElementById(id).style.display = show ? 'block' : 'none';
+}
+</script>
+
+<?php include 'footer_shared.php'; ?>
