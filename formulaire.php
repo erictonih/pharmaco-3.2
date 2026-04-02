@@ -72,9 +72,18 @@ include 'sidebar.php';
                     </div>
 
                     <div class="dv-form-group">
-                        <label class="dv-label" for="district">District</label>
-                        <input type="text" id="district" name="district" class="dv-input" placeholder="Ex : Andramasina">
-                    </div>
+                    <label class="dv-label">Région</label>
+                    <select id="region" name="region" class="dv-select" onchange="updateDistricts()">
+                        <option value="">— Sélectionner une région —</option>
+                    </select>
+                </div>
+
+                <div class="dv-form-group">
+                    <label class="dv-label">District</label>
+                    <select id="district" name="district" class="dv-select">
+                        <option value="">— Sélectionner un district —</option>
+                    </select>
+                </div>
 
                 </div>
 
@@ -105,5 +114,59 @@ include 'sidebar.php';
         </form>
 
     </div>
+            <script>
+            const districtsByRegion = {
+                "Analamanga": ["Ambohidratrimo","Andramasina","Anjozorobe","Ankazobe","Antananarivo Atsimondrano","Antananarivo Avaradrano","Antananarivo Renivohitra","Manjakandriana"],
+                "Vakinankaratra": ["Ambatolampy","Antanifotsy","Antsirabe I","Antsirabe II","Betafo","Faratsiho","Mandoto"],
+                "Itasy": ["Arivonimamo","Miarinarivo","Soavinandriana"],
+                "Bongolava": ["Fenoarivobe","Tsiroanomandidy"],
+                "Diana": ["Ambanja","Ambilobe","Antsiranana I","Antsiranana II","Nosy Be"],
+                "Sava": ["Andapa","Antalaha","Sambava","Vohemar"],
+                "Alaotra Mangoro": ["Ambatondrazaka","Amparafaravola","Andilamena","Anosibe An'ala","Moramanga"],
+                "Atsinanana": ["Antanambao Manampotsy","Brickaville","Mahanoro","Marolambo","Toamasina I","Toamasina II","Vatomandry"],
+                "Boeny": ["Ambato Boeny","Mahajanga I","Mahajanga II","Marovoay","Mitsinjo","Soalala"],
+                "Sofia": ["Analalava","Antsohihy","Bealanana","Befandriana Nord","Mampikony","Mandritsara","Port-Bergé"],
+                "Menabe": ["Belo sur Tsiribihina","Mahabo","Manja","Miandrivazo","Morondava"],
+                "Atsimo Andrefana": ["Ampanihy","Ankazoabo","Benenitra","Beroroha","Betioky","Morombe","Sakaraha","Toliara I","Toliara II"],
+                "Androy": ["Ambovombe","Bekily","Beloha","Tsihombe"],
+                "Anosy": ["Amboasary Atsimo","Betroka","Taolagnaro"],
+                "Haute Matsiatra": ["Ambalavao","Ambohimahasoa","Fianarantsoa I","Ikalamavony","Isandra","Lalangina","Vohibato"],
+                "Amoron'i Mania": ["Ambatofinandrahana","Ambositra","Fandriana","Manandriana"],
+                "Vatovavy": ["Ifanadiana","Mananjary","Nosy Varika"],
+                "Fitovinany": ["Ikongo","Manakara","Vohipeno"],
+                "Atsimo Atsinanana": ["Befotaka","Farafangana","Midongy Atsimo","Vangaindrano","Vondrozo"],
+                "Ihorombe": ["Iakora","Ihosy","Ivohibe"],
+                "Melaky": ["Ambatomainty","Antsalova","Besalampy","Maintirano","Morafenobe"],
+                "Betsiboka": ["Kandreho","Maevatanana","Tsaratanana"]
+            };
 
+            function loadRegions(){
+                const regionSelect = document.getElementById("region");
+
+                Object.keys(districtsByRegion).forEach(region => {
+                    let option = document.createElement("option");
+                    option.value = region;
+                    option.textContent = region;
+                    regionSelect.appendChild(option);
+                });
+            }
+
+            function updateDistricts(){
+                const region = document.getElementById("region").value;
+                const districtSelect = document.getElementById("district");
+
+                districtSelect.innerHTML = '<option value="">— Sélectionner un district —</option>';
+
+                if(!region) return;
+
+                districtsByRegion[region].forEach(district => {
+                    let option = document.createElement("option");
+                    option.value = district;
+                    option.textContent = district;
+                    districtSelect.appendChild(option);
+                });
+            }
+
+            window.onload = loadRegions;
+            </script>
 <?php include 'footer_shared.php'; ?>

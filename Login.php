@@ -15,7 +15,7 @@ if (isset($_SESSION['error'])) {
     <title>Connexion — DVSSER</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="sary/dvsser.jpg" type="image/jpg">
+    <link rel="icon" href="MINS.png" type="image/jpg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -221,7 +221,28 @@ if (isset($_SESSION['error'])) {
         transition: all 0.2s;
     }
     .theme-toggle-login:hover { border-color: #3b9ede; color: #3b9ede; }
+        label .password-icon {
+          display: flex;
+          align-items: center;
 
+          position: absolute;
+          top: 50%;
+          right: 20px;
+          transform: translateY(-50%);
+          width: 20px;
+
+          color: #f9f9f9;
+          transition: all 0.2s;
+        }
+
+        label .password-icon:hover {
+          cursor: pointer;
+          color: #ff4754;
+        }
+
+        label .password-icon .feather-eye-off {
+          display: none;
+        }
     .login-footer {
         text-align: center;
         margin-top: 28px;
@@ -266,8 +287,14 @@ if (isset($_SESSION['error'])) {
 
             <div class="form-group">
                 <label class="form-label" for="password">Mot de passe</label>
-                <input type="password" id="password" name="password" class="form-input"
-                       placeholder="Entrez votre mot de passe" required autocomplete="current-password">
+                <input type="password" id="password" name="password" class="form-input" placeholder="Entrez votre mot de passe" required autocomplete="current-password">
+                	<div class="password-icon">
+                        <i data-feather="eye">Affichée</i> <i data-feather="eye-off">Cachée</i>
+                        <script src="https://unpkg.com/feather-icons"></script>
+                        <script>
+                          feather.replace();
+                        </script>
+                  	</div>
             </div>
 
             <a href="#" class="forgot-link" onclick="alert('Veuillez contacter votre administrateur système : 034 03 887 72'); return false;">
@@ -302,6 +329,24 @@ btn.addEventListener('click', function(){
     localStorage.setItem('dvsser-theme', next);
     icon.className = next==='dark' ? 'bi bi-sun' : 'bi bi-moon-stars';
 });
+    const eye = document.querySelector(".feather-eye");
+    const eyeoff = document.querySelector(".feather-eye-off");
+    const passwordField = document.querySelector("input[type=password]");
+
+    eye.addEventListener("click", () => {
+      eye.style.display = "none";
+      eyeoff.style.display = "block";
+
+      passwordField.type = "text";
+    });
+
+    eyeoff.addEventListener("click", () => {
+      eyeoff.style.display = "none";
+      eye.style.display = "block";
+
+      passwordField.type = "password";
+    });
+
 </script>
 </body>
 </html>
