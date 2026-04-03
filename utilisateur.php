@@ -14,40 +14,56 @@ $db_user    = 'if0_41511897';
 $db_pass    = 'jR9A6jlS7c8f8r';
 
 $conn = new mysqli($servername, $db_user, $db_pass, $dbname);
+
 if ($conn->connect_error) {
     die("Connexion échouée : " . $conn->connect_error);
 }
+
 $conn->set_charset('utf8mb4');
 
 $username = trim($_POST['username'] ?? '');
-$password = trim($_POST['password'] ?? '');
+$passwordSaisi = trim($_POST['password'] ?? '');
 
-if (empty($username) || empty($password)) {
+// Vérification des champs
+if (empty($username) || empty($passwordSaisi)) {
     $_SESSION['error'] = 'Veuillez remplir tous les champs.';
     header("Location: Login.php");
     exit();
 }
 
-// Requête préparée (sécurisée contre injection SQL)
-$stmt = $conn->prepare("SELECT user_id, username, role FROM users WHERE username = ? AND mdp = ?");
-$stmt->bind_param('ss', $username, $password);
+// Requête : récupérer le mot de passe hashé
+$stmt = $conn->prepare("SELECT user_id, username, role, mdp FROM users WHERE username = ?");
+$stmt->bind_param('s', $username);
 $stmt->execute();
 $result = $stmt->get_result();
 
 if ($result->num_rows > 0) {
     $row = $result->fetch_assoc();
 
-    $_SESSION['user_id']   = $row['user_id'];
-    $_SESSION['user_name'] = $row['username'];
-    $_SESSION['role']      = trim($row['role']);
+    // mot de passe hashé dans la base
+    $hashBase = $row['mdp'];
 
-    header("Location: index.php");
-    exit();
+    // Vérification du mot de passe
+    if (password_verify($passwordSaisi, $hashBase)) {
+
+        $_SESSION['user_id']   = $row['user_id'];
+        $_SESSION['user_name'] = $row['username'];
+        $_SESSION['role']      = trim($row['role']);
+
+        header("Location: index.php");
+        exit();
+    } else {
+        $_SESSION['error'] = 'Mot de passe incorrect.';
+        header("Location: Login.php");
+        exit();
+    }
+
 } else {
-    $_SESSION['error'] = 'Identifiant ou mot de passe incorrect.';
-    $stmt->close();
-    $conn->close();
+    $_SESSION['error'] = 'Utilisateur introuvable.';
     header("Location: Login.php");
     exit();
 }
+
+$stmt->close();
+$conn->close();
 ?>
