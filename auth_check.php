@@ -23,7 +23,8 @@ $PAGE_ROLES = array(
     'analyse.php'                 => array('Super Admin', 'Visiteur', 'Visualiseur', 'Analyste'),
     'visualisation_Base.php'      => array('Super Admin', 'Visiteur', 'Visualiseur', 'Analyste'),
     'visualisation_de_donnée.php' => array('Super Admin', 'Visiteur', 'Visualiseur', 'Analyste'),
-    'index.php'                   => array('Super Admin', 'Saisie', 'Visiteur', 'Visualiseur', 'Analyste')
+    'index.php'                   => array('Super Admin', 'Saisie', 'Visiteur', 'Visualiseur', 'Analyste'),
+    'analyse_mpox.php' => array('Super Admin', 'Visiteur', 'Visualiseur', 'Analyste')
 );
 
 $current_page = basename($_SERVER['PHP_SELF']);

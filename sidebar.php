@@ -65,6 +65,14 @@ $initials = isset($_SESSION['user_name']) ? strtoupper(substr($_SESSION['user_na
                     <i class="bi bi-bar-chart-line nav-icon"></i> Analyse
                 </a>
             </li>
+            <li>
+            <a href="analyse_mpox.php"
+                class="nav-link <?= ($active_page === 'analyse_mpox') ? 'active' : '' ?>"
+                title="Analyse Mpox">
+                <i class="bi bi-virus"></i>
+                <span>Analyse Mpox</span>
+                </a>
+                </li>
             <li class="<?php echo $active_page === 'tdc' ? 'active' : ''; ?>">
                 <a href="tdc.php">
                     <i class="bi bi-table nav-icon"></i> TDC

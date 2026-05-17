@@ -24,6 +24,7 @@ $PAGE_ROLES = array(
     'visualisation_de_donnée.php' => array('Super Admin', 'Visiteur', 'Visualiseur', 'Analyste'),
     'index.php'                   => array('Super Admin', 'Saisie', 'Visiteur', 'Visualiseur', 'Analyste'),
     'parametre.php'               => array('Super Admin'),
+    'analyse_mpox.php'            => array('Super Admin', 'Visiteur', 'Visualiseur', 'Analyste')
 );
 
 // Labels lisibles pour chaque page
@@ -37,6 +38,7 @@ $PAGE_LABELS = array(
     'visualisation_de_donnée.php' => ['icon' => 'bi-pie-chart',         'label' => 'Visualisation données'],
     'index.php'                   => ['icon' => 'bi-house',             'label' => 'Tableau de bord'],
     'parametre.php'               => ['icon' => 'bi-sliders',           'label' => 'Paramètres & Rôles'],
+    'analyse_mpox.php'            => ['icon' => 'bi-virus',    'label' => 'Analyse de donnee Mpox']
 );
 
 // ── Traitement AJAX — sauvegarde des permissions ──────────────────────────
