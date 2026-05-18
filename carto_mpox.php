@@ -19,9 +19,9 @@ $active_page = 'analyse_mpox';
 $breadcrumb  = ['Accueil' => 'index.php', 'Analyse Mpox' => 'analyse_mpox.php', 'Cartographie' => ''];
 include 'sidebar.php';
 
-// ════════════════════════════════════════════════════════════════════════════
-//  CONFIG & FONCTIONS (même config que analyse_mpox.php)
-// ════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+//  CONFIG & DONNÉES
+// ═══════════════════════════════════════════════════════════════════
 define('SHEET_ID',    '1VdqjKcr00GmRI-FuOopXhRwYolvkUJmtp3DSV9ow4CE');
 define('SHEET_RANGE', 'BDD 28042026!A1:BF5000');
 define('SA_KEY_FILE', __DIR__ . '/config/google_service_account.json');
@@ -30,22 +30,18 @@ define('CACHE_TTL',   300);
 
 function curlGet(string $url, array $headers = []): string {
     $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20,
-        CURLOPT_SSL_VERIFYPEER => false, CURLOPT_SSL_VERIFYHOST => false,
-        CURLOPT_HTTPHEADER => $headers, CURLOPT_FOLLOWLOCATION => true,
-    ]);
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>20,
+        CURLOPT_SSL_VERIFYPEER=>false,CURLOPT_SSL_VERIFYHOST=>false,
+        CURLOPT_HTTPHEADER=>$headers,CURLOPT_FOLLOWLOCATION=>true]);
     $resp = curl_exec($ch); $err = curl_error($ch); curl_close($ch);
     if ($err) throw new Exception("cURL GET : $err");
     return $resp ?: '';
 }
 function curlPost(string $url, string $body, array $headers = []): string {
     $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_POSTFIELDS => $body,
-        CURLOPT_TIMEOUT => 20, CURLOPT_SSL_VERIFYPEER => false, CURLOPT_SSL_VERIFYHOST => false,
-        CURLOPT_HTTPHEADER => $headers,
-    ]);
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER=>true,CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>$body,
+        CURLOPT_TIMEOUT=>20,CURLOPT_SSL_VERIFYPEER=>false,CURLOPT_SSL_VERIFYHOST=>false,
+        CURLOPT_HTTPHEADER=>$headers]);
     $resp = curl_exec($ch); $err = curl_error($ch); curl_close($ch);
     if ($err) throw new Exception("cURL POST : $err");
     return $resp ?: '';
@@ -74,12 +70,12 @@ function fetchSheetData(): array {
     }
     try {
         $token = getGoogleToken();
-        $url   = 'https://sheets.googleapis.com/v4/spreadsheets/'.SHEET_ID.'/values/'.rawurlencode(SHEET_RANGE)
-               . '?majorDimension=ROWS&valueRenderOption=UNFORMATTED_VALUE';
-        $resp  = curlGet($url, ["Authorization: Bearer $token"]);
-        $data  = json_decode($resp, true);
+        $url = 'https://sheets.googleapis.com/v4/spreadsheets/'.SHEET_ID.'/values/'.rawurlencode(SHEET_RANGE)
+             . '?majorDimension=ROWS&valueRenderOption=UNFORMATTED_VALUE';
+        $resp = curlGet($url, ["Authorization: Bearer $token"]);
+        $data = json_decode($resp, true);
         if (isset($data['error'])) throw new Exception("Sheets API : ".$data['error']['message']);
-        $rows  = $data['values'] ?? [];
+        $rows = $data['values'] ?? [];
         if (!is_dir(dirname(CACHE_FILE))) mkdir(dirname(CACHE_FILE), 0755, true);
         file_put_contents(CACHE_FILE, json_encode($rows));
         return $rows;
@@ -89,10 +85,9 @@ function fetchSheetData(): array {
     }
 }
 
-// ── Chargement données ────────────────────────────────────────────────────
-$rawRows = fetchSheetData();
+$rawRows  = fetchSheetData();
 $lastSync = file_exists(CACHE_FILE) ? date('d/m/Y H:i:s', filemtime(CACHE_FILE)) : 'Jamais';
-$headers = []; $records = [];
+$headers  = []; $records = [];
 if (!empty($rawRows)) {
     $headers = array_shift($rawRows);
     foreach ($rawRows as $row) {
@@ -103,651 +98,709 @@ if (!empty($rawRows)) {
 }
 
 $COL = [
-    'date_notif'    => 'Date de notification',
-    'district'      => 'District',
-    'classification'=> 'Classification de cas( cas suspect, confirmé, probable, non cas)',
-    'conclusion'    => 'Conclusion 1',
+    'date_notif' => 'Date de notification',
+    'district'   => 'District',
+    'conclusion' => 'Conclusion 1',
 ];
 
-// ── Date du jour & calcul des 4 dernières semaines ───────────────────────
-$today     = date('Y-m-d');
-$todayTs   = strtotime($today);
-$week4Start= strtotime('-28 days', $todayTs); // 4 semaines = 28 jours
-
-// ── Agrégation par district ───────────────────────────────────────────────
-$districtData = []; // [district => [notif_today, confirm_today, notif_cumul, confirm_4w]]
+$today      = date('Y-m-d');
+$todayTs    = strtotime($today);
+$week4Start = strtotime('-28 days', $todayTs);
+$districtData = [];
 
 foreach ($records as $r) {
     $district = trim($r[$COL['district']] ?? 'Inconnu');
     if (!$district || $district === 'Inconnu') continue;
-
-    $dateStr  = trim($r[$COL['date_notif']] ?? '');
-    $cas      = mb_strtolower(trim($r[$COL['conclusion']] ?? ''), 'UTF-8');
-    $isConfirm= str_contains($cas, 'confirm');
-
-    $ts = $dateStr ? strtotime($dateStr) : null;
-    $dateFormatted = $ts ? date('Y-m-d', $ts) : null;
-
-    if (!isset($districtData[$district])) {
-        $districtData[$district] = [
-            'notif_today'   => 0,
-            'confirm_today' => 0,
-            'notif_cumul'   => 0,
-            'confirm_4w'    => 0,
-        ];
-    }
-
-    // Notifiés aujourd'hui
-    if ($dateFormatted === $today) {
+    $dateStr   = trim($r[$COL['date_notif']] ?? '');
+    $cas       = mb_strtolower(trim($r[$COL['conclusion']] ?? ''), 'UTF-8');
+    $isConfirm = str_contains($cas, 'confirm');
+    $ts        = $dateStr ? strtotime($dateStr) : null;
+    $dateFmt   = $ts ? date('Y-m-d', $ts) : null;
+    if (!isset($districtData[$district]))
+        $districtData[$district] = ['notif_today'=>0,'confirm_today'=>0,'notif_cumul'=>0,'confirm_4w'=>0];
+    if ($dateFmt === $today) {
         $districtData[$district]['notif_today']++;
         if ($isConfirm) $districtData[$district]['confirm_today']++;
     }
-
-    // Notifiés cumulés (tous)
     $districtData[$district]['notif_cumul']++;
-
-    // Confirmés 4 dernières semaines
-    if ($ts && $ts >= $week4Start && $isConfirm) {
-        $districtData[$district]['confirm_4w']++;
-    }
+    if ($ts && $ts >= $week4Start && $isConfirm) $districtData[$district]['confirm_4w']++;
 }
 
-// Totaux pour info
 $totalNotifToday   = array_sum(array_column($districtData, 'notif_today'));
 $totalConfirmToday = array_sum(array_column($districtData, 'confirm_today'));
 $totalNotifCumul   = array_sum(array_column($districtData, 'notif_cumul'));
 $totalConfirm4w    = array_sum(array_column($districtData, 'confirm_4w'));
 
-$jsonDistrictData = json_encode($districtData);
+// Top 5 cumulés
+$top5cumul = $districtData;
+arsort($top5cumul);
+$top5cumul = array_slice($top5cumul, 0, 5, true);
+
+// Top 5 confirmés 4 semaines
+$top5conf4w = $districtData;
+uasort($top5conf4w, fn($a,$b) => $b['confirm_4w'] <=> $a['confirm_4w']);
+$top5conf4w = array_slice($top5conf4w, 0, 5, true);
 ?>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
+
+<!-- ══ Styles spécifiques cartographie ════════════════════════════ -->
 <style>
-:root {
-  --mpox-red:#c0392b; --mpox-orange:#e67e22; --mpox-blue:#2980b9;
-  --mpox-green:#27ae60; --mpox-dark:#1a2332; --mpox-gray:#6b7a8d;
-  --border:#e2e8f0;
+/* ── SVG map ───────────────────────────────────────── */
+#map-svg-wrap {
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-base, #f8faff);
+    border-radius: 0 0 0 0;
 }
-.carto-wrap { padding: 0; }
-
-/* ── Navigation cartes ── */
-.map-nav {
-  display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;
-}
-.map-btn {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 18px; border-radius: 10px; border: 2px solid var(--border);
-  background: #fff; cursor: pointer; font-size: .84rem; font-weight: 700;
-  color: var(--mpox-dark); transition: all .2s; text-decoration: none;
-}
-.map-btn:hover { border-color: var(--mpox-blue); color: var(--mpox-blue); background: #f0f8ff; }
-.map-btn.active { background: var(--mpox-blue); color: #fff; border-color: var(--mpox-blue); }
-.map-btn.active-red  { background: var(--mpox-red);    color: #fff; border-color: var(--mpox-red); }
-.map-btn.active-orange { background: var(--mpox-orange); color: #fff; border-color: var(--mpox-orange); }
-.map-btn.active-green { background: var(--mpox-green);  color: #fff; border-color: var(--mpox-green); }
-.map-btn .dot {
-  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
-}
-
-/* ── Layout ── */
-.carto-layout { display: grid; grid-template-columns: 1fr 320px; gap: 16px; }
-@media(max-width:900px) { .carto-layout { grid-template-columns: 1fr; } }
-
-/* ── Map container ── */
-.map-card {
-  background: #fff; border: 1px solid var(--border); border-radius: 14px;
-  overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,.06);
-}
-.map-header {
-  padding: 14px 18px; border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 10px;
-}
-.map-header-title { font-size: .95rem; font-weight: 800; color: var(--mpox-dark); }
-.map-header-sub   { font-size: .78rem; color: var(--mpox-gray); margin-top: 2px; }
-.map-header-badge {
-  margin-left: auto; padding: 4px 14px; border-radius: 20px;
-  font-size: .8rem; font-weight: 700;
-}
-#map-container { height: 560px; width: 100%; }
-
-/* ── Légende ── */
-.legend-card {
-  background: #fff; border: 1px solid var(--border); border-radius: 14px;
-  padding: 18px; box-shadow: 0 2px 12px rgba(0,0,0,.06);
-}
-.legend-title {
-  font-size: .85rem; font-weight: 800; color: var(--mpox-dark);
-  border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 14px;
-  display: flex; align-items: center; gap: 8px;
-}
-.legend-item {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 7px 0; border-bottom: 1px solid var(--border); font-size: .82rem;
-}
-.legend-item:last-child { border: none; }
-.legend-color {
-  width: 22px; height: 14px; border-radius: 3px; flex-shrink: 0; margin-right: 8px;
-}
-.legend-left { display: flex; align-items: center; }
-.legend-val  { font-weight: 700; color: var(--mpox-dark); }
-
-/* ── Top districts ── */
-.top-item {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 0; border-bottom: 1px solid var(--border); font-size: .82rem;
-}
-.top-item:last-child { border: none; }
-.top-rank {
-  width: 24px; height: 24px; border-radius: 50%; display: flex;
-  align-items: center; justify-content: center; font-size: .72rem;
-  font-weight: 800; flex-shrink: 0; color: #fff;
-}
-.top-bar-wrap { flex: 1; }
-.top-bar { height: 5px; border-radius: 3px; margin-top: 3px; }
-
-/* ── KPI mini ── */
-.kpi-mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
-.kpi-mini {
-  background: #f8faff; border: 1px solid var(--border); border-radius: 8px;
-  padding: 10px 12px; text-align: center;
-}
-.kpi-mini-val  { font-size: 1.4rem; font-weight: 800; line-height: 1; }
-.kpi-mini-lbl  { font-size: .68rem; color: var(--mpox-gray); font-weight: 600;
-                  text-transform: uppercase; margin-top: 3px; }
-
-/* ── Sync bar ── */
-.sync-bar { display:flex;align-items:center;justify-content:space-between;background:#fff;
-  border:1px solid var(--border);border-radius:10px;padding:10px 18px;
-  margin-bottom:16px;font-size:.82rem;color:var(--mpox-gray); }
-.sync-dot { width:8px;height:8px;border-radius:50%;background:var(--mpox-green);
-  animation:pulse 2s infinite; }
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-
-/* ── Tooltip ── */
-.leaflet-popup-content-wrapper { border-radius: 10px !important; }
-
-/* ── No data notice ── */
-.no-data-notice {
-  background: #fef9e7; border: 1px solid #f9ca24; border-radius: 10px;
-  padding: 12px 16px; font-size: .82rem; color: #8b6914; margin-bottom: 14px;
-  display: flex; align-items: center; gap: 8px;
 #svg-map {
-    background: #f8fafc;
     width: 100%;
-    height: 560px;
+    height: 540px;
+    min-height: 300px;
+    max-height: 90vh;
+    resize: vertical;
+    overflow: auto;
+    display: block;
+    transition: height 0.25s ease;
 }
-
 .district {
-    stroke: #ffffff;
-    stroke-width: 1;
     cursor: pointer;
-    transition: 0.2s;
+    transition: filter .12s;
+}
+.district:hover { filter: brightness(0.82); }
+
+/* ── Onglets couches ───────────────────────────────── */
+.map-nav { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+.map-tab {
+    display:flex; align-items:center; gap:8px; padding:9px 16px;
+    border-radius:10px; border:1.5px solid var(--border);
+    background:var(--bg-card); cursor:pointer; font-size:.81rem; font-weight:700;
+    color:var(--text-secondary); transition:all .18s; line-height:1.3;
+    font-family: 'Syne', sans-serif;
+}
+.map-tab:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+.map-tab .tab-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.map-tab .tab-sub { font-size:.67rem; font-weight:400; opacity:.75; display:block; }
+.map-tab.t-blue   { background:#2980b9; color:#fff; border-color:#2980b9; }
+.map-tab.t-red    { background:#c0392b; color:#fff; border-color:#c0392b; }
+.map-tab.t-orange { background:#e67e22; color:#fff; border-color:#e67e22; }
+.map-tab.t-green  { background:#27ae60; color:#fff; border-color:#27ae60; }
+
+/* ── Légende carte ─────────────────────────────────── */
+.map-legend {
+    background:var(--bg-card); border:1px solid var(--border);
+    border-radius:10px; padding:12px 14px;
+    font-size:.78rem; color:var(--text-secondary); line-height:2;
+}
+.legend-dot {
+    display:inline-block; width:14px; height:14px;
+    border-radius:3px; margin-right:6px; vertical-align:middle;
 }
 
-.district:hover {
-    stroke: #222;
-    stroke-width: 2;
-    opacity: 0.9;
+/* ── Tooltip ───────────────────────────────────────── */
+.carto-tooltip {
+    position:fixed; z-index:9999; pointer-events:none;
+    background:var(--bg-card); border:1px solid var(--border);
+    border-radius:12px; padding:13px 16px; min-width:210px;
+    box-shadow:0 6px 24px rgba(0,0,0,.14); font-size:.82rem;
+    color:var(--text-primary); display:none; line-height:1.5;
 }
+.carto-tooltip .tt-name {
+    font-family:'Syne',sans-serif; font-weight:800; font-size:.93rem;
+    margin-bottom:8px; color:var(--text-primary);
+    border-bottom:1px solid var(--border); padding-bottom:6px;
+}
+.tt-row { display:flex; justify-content:space-between; align-items:center;
+    padding:3px 0; font-size:.8rem; }
+.tt-val { font-weight:800; }
 
-.map-tooltip {
-    position: absolute;
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 10px;
-    pointer-events: none;
-    font-size: 12px;
-    box-shadow: 0 4px 10px rgba(0,0,0,.15);
-    z-index: 9999;
+/* ── Overlay loading ───────────────────────────────── */
+#map-loading {
+    position:absolute; top:0; left:0; right:0; bottom:0;
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:12px;
+    background:var(--bg-base, #f8faff); z-index:20;
 }
+.spin-ring {
+    width:34px; height:34px; border:3px solid var(--border);
+    border-top-color:var(--accent,#0a6cbc); border-radius:50%;
+    animation:spin .7s linear infinite;
 }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* ── KPI stats grid ────────────────────────────────── */
+.kpi-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+@media(max-width:720px) { .kpi-4 { grid-template-columns:1fr 1fr; } }
+
+/* ── Top districts ─────────────────────────────────── */
+.top-bar-item {
+    display:flex; align-items:center; gap:10px;
+    padding:7px 0; border-bottom:1px solid var(--border); font-size:.82rem;
+}
+.top-bar-item:last-child { border:none; }
+.top-num {
+    width:22px; height:22px; border-radius:50%; display:flex;
+    align-items:center; justify-content:center;
+    font-size:.7rem; font-weight:800; color:#fff; flex-shrink:0;
+}
+.bar-bg { flex:1; background:var(--border); border-radius:3px; height:5px; }
+.bar-fill { height:5px; border-radius:3px; }
+
+/* ── Sync dot ──────────────────────────────────────── */
+.pulse-dot {
+    display:inline-block; width:8px; height:8px;
+    border-radius:50%; background:#27ae60;
+    animation:pdot 2s infinite; margin-right:6px;
+}
+@keyframes pdot { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ── Contrôles carte ───────────────────────────────── */
+.map-size-controls { display:flex; gap:6px; flex-wrap:wrap; }
 </style>
-</head>
 
-<div class="dv-content dv-animate carto-wrap">
+<div class="dv-content dv-animate">
 
-  <!-- En-tête ───────────────────────────────────────────────────────────── -->
-  <div class="dv-page-header">
-    <h1>
-      <i class="bi bi-map" style="color:#2980b9;margin-right:8px;"></i>
-      Cartographie épidémique — Mpox Madagascar par District
-    </h1>
-    <div class="dv-breadcrumb">
-      <a href="index.php">Accueil</a>
-      <i class="bi bi-chevron-right" style="font-size:.65rem;"></i>
-      <a href="analyse_mpox.php">Analyse Mpox</a>
-      <i class="bi bi-chevron-right" style="font-size:.65rem;"></i>
-      <span>Cartographie</span>
-    </div>
-  </div>
-
-  <!-- Barre de sync ─────────────────────────────────────────────────────── -->
-  <div class="sync-bar">
-    <div style="display:flex;align-items:center;gap:8px;">
-      <div class="sync-dot"></div>
-      <span>Données · <strong>Mise à jour :</strong> <?= htmlspecialchars($lastSync) ?></span>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;font-size:.8rem;">
-      <span><i class="bi bi-geo-alt"></i> Fond de carte : <strong>DISTRICT.shp</strong></span>
-      <a href="analyse_mpox.php" class="dv-btn dv-btn-outline" style="padding:5px 14px;font-size:.8rem;">
-        <i class="bi bi-bar-chart-line"></i> Tableau de bord
-      </a>
-    </div>
-  </div>
-
-  <?php if (empty($districtData)): ?>
-  <div class="no-data-notice">
-    <i class="bi bi-exclamation-triangle-fill"></i>
-    Aucune donnée disponible. Vérifiez la connexion Google Sheets depuis
-    <a href="analyse_mpox.php">le tableau de bord</a>.
-  </div>
-  <?php endif; ?>
-
-  <!-- Navigation entre les 4 cartes ───────────────────────────────────── -->
-  <div class="map-nav">
-    <button class="map-btn active" id="btn-notif-today" onclick="switchMap('notif_today')">
-      <span class="dot" style="background:#2980b9;"></span>
-      <span>
-        <div>Cas notifiés aujourd'hui</div>
-        <div style="font-size:.72rem;font-weight:400;opacity:.8;"><?= date('d/m/Y') ?></div>
-      </span>
-    </button>
-    <button class="map-btn" id="btn-confirm-today" onclick="switchMap('confirm_today')">
-      <span class="dot" style="background:#c0392b;"></span>
-      <span>
-        <div>Cas confirmés aujourd'hui</div>
-        <div style="font-size:.72rem;font-weight:400;opacity:.8;"><?= date('d/m/Y') ?></div>
-      </span>
-    </button>
-    <button class="map-btn" id="btn-notif-cumul" onclick="switchMap('notif_cumul')">
-      <span class="dot" style="background:#e67e22;"></span>
-      <span>
-        <div>Cas notifiés cumulés</div>
-        <div style="font-size:.72rem;font-weight:400;opacity:.8;">Toute la période</div>
-      </span>
-    </button>
-    <button class="map-btn" id="btn-confirm-4w" onclick="switchMap('confirm_4w')">
-      <span class="dot" style="background:#27ae60;"></span>
-      <span>
-        <div>Cas confirmés — 4 dernières semaines</div>
-        <div style="font-size:.72rem;font-weight:400;opacity:.8;"><?= date('d/m/Y', $week4Start) ?> → <?= date('d/m/Y') ?></div>
-      </span>
-    </button>
-  </div>
-
-  <!-- Layout carte + légende ───────────────────────────────────────────── -->
-  <div class="carto-layout">
-
-    <!-- Carte Leaflet ───────────────────────────────────────────────────── -->
-    <div class="map-card">
-      <div class="map-header" id="map-header">
-        <i class="bi bi-map" style="font-size:1.2rem;color:#2980b9;" id="map-icon"></i>
-        <div>
-          <div class="map-header-title" id="map-title">Cas notifiés aujourd'hui</div>
-          <div class="map-header-sub" id="map-sub"><?= date('d/m/Y') ?> · Cliquez sur un district pour les détails</div>
+    <!-- ══ En-tête ══════════════════════════════════════════ -->
+    <div class="dv-page-header">
+        <h1>
+            <i class="bi bi-map" style="color:#2980b9;margin-right:8px;"></i>
+            Cartographie épidémique Mpox — Districts de Madagascar
+        </h1>
+        <div class="dv-breadcrumb">
+            <a href="index.php">Accueil</a>
+            <i class="bi bi-chevron-right" style="font-size:.65rem;"></i>
+            <a href="analyse_mpox.php">Analyse Mpox</a>
+            <i class="bi bi-chevron-right" style="font-size:.65rem;"></i>
+            <span>Cartographie</span>
         </div>
-        <div class="map-header-badge" id="map-badge" style="background:#e8f4fd;color:#2980b9;">
-          Total : <?= $totalNotifToday ?>
-        </div>
-      </div>
-      <div id="map-container">
-        <svg id="svg-map" width="100%" height="560"></svg>
-      </div>
     </div>
 
-    <!-- Panneau latéral ─────────────────────────────────────────────────── -->
-    <div>
-      <!-- KPI mini ── -->
-      <div class="legend-card" style="margin-bottom:12px;">
-        <div class="legend-title"><i class="bi bi-clipboard-data"></i> Résumé</div>
-        <div class="kpi-mini-grid">
-          <div class="kpi-mini">
-            <div class="kpi-mini-val" style="color:#2980b9;"><?= $totalNotifToday ?></div>
-            <div class="kpi-mini-lbl">Notifiés<br>aujourd'hui</div>
-          </div>
-          <div class="kpi-mini">
-            <div class="kpi-mini-val" style="color:#c0392b;"><?= $totalConfirmToday ?></div>
-            <div class="kpi-mini-lbl">Confirmés<br>aujourd'hui</div>
-          </div>
-          <div class="kpi-mini">
-            <div class="kpi-mini-val" style="color:#e67e22;"><?= $totalNotifCumul ?></div>
-            <div class="kpi-mini-lbl">Notifiés<br>cumulés</div>
-          </div>
-          <div class="kpi-mini">
-            <div class="kpi-mini-val" style="color:#27ae60;"><?= $totalConfirm4w ?></div>
-            <div class="kpi-mini-lbl">Confirmés<br>4 semaines</div>
-          </div>
+    <!-- ══ Barre sync ════════════════════════════════════════ -->
+    <div class="dv-card dv-animate dv-animate-d1"
+         style="padding:10px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <div style="font-size:.82rem;color:var(--text-secondary);display:flex;align-items:center;">
+            <span class="pulse-dot"></span>
+            Mise à jour : <strong style="color:var(--text-primary);margin:0 4px;"><?= htmlspecialchars($lastSync) ?></strong>
+            · <?= number_format(count($records)) ?> enregistrements
         </div>
-      </div>
-
-      <!-- Légende ── -->
-      <div class="legend-card" style="margin-bottom:12px;">
-        <div class="legend-title"><i class="bi bi-palette"></i> Légende — <span id="legend-label">Cas notifiés aujourd'hui</span></div>
-        <div id="legend-items">
-          <!-- généré dynamiquement par JS -->
-        </div>
-        <div style="font-size:.75rem;color:var(--mpox-gray);margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">
-          <i class="bi bi-info-circle"></i> Districts sans cas apparaissent en gris clair
-        </div>
-      </div>
-
-      <!-- Top 5 districts ── -->
-      <div class="legend-card">
-        <div class="legend-title"><i class="bi bi-trophy"></i> Top 5 Districts</div>
-        <div id="top5-list">
-          <!-- généré dynamiquement par JS -->
-        </div>
-      </div>
+        <a href="analyse_mpox.php" class="dv-btn dv-btn-outline" style="font-size:.8rem;padding:5px 14px;">
+            <i class="bi bi-bar-chart-line"></i> Tableau de bord
+        </a>
     </div>
-  </div>
 
-  <!-- Note bas de page ─────────────────────────────────────────────────── -->
-  <div style="text-align:center;font-size:.78rem;color:var(--mpox-gray);padding:14px 0 20px;">
-    <i class="bi bi-geo"></i> Fond de carte : <strong>DISTRICT.shp</strong> · Madagascar ·
-    Données : Google Sheets · Période affichée : <strong id="period-label">Aujourd'hui (<?= date('d/m/Y') ?>)</strong>
-  </div>
+    <!-- ══ KPI rapides ══════════════════════════════════════ -->
+    <div class="kpi-4 dv-animate dv-animate-d1">
+        <div class="dv-stat" style="border-left:3px solid #2980b9;">
+            <div class="dv-stat-label">Notifiés aujourd'hui</div>
+            <div class="dv-stat-value" style="color:#2980b9;"><?= $totalNotifToday ?></div>
+            <div class="dv-stat-sub"><?= date('d/m/Y') ?></div>
+        </div>
+        <div class="dv-stat" style="border-left:3px solid #c0392b;">
+            <div class="dv-stat-label">Confirmés aujourd'hui</div>
+            <div class="dv-stat-value" style="color:#c0392b;"><?= $totalConfirmToday ?></div>
+            <div class="dv-stat-sub"><?= date('d/m/Y') ?></div>
+        </div>
+        <div class="dv-stat" style="border-left:3px solid #e67e22;">
+            <div class="dv-stat-label">Notifiés cumulés</div>
+            <div class="dv-stat-value" style="color:#e67e22;"><?= $totalNotifCumul ?></div>
+            <div class="dv-stat-sub">Toute la période</div>
+        </div>
+        <div class="dv-stat" style="border-left:3px solid #27ae60;">
+            <div class="dv-stat-label">Confirmés 4 semaines</div>
+            <div class="dv-stat-value" style="color:#27ae60;"><?= $totalConfirm4w ?></div>
+            <div class="dv-stat-sub"><?= date('d/m/Y', $week4Start) ?> → <?= date('d/m/Y') ?></div>
+        </div>
+    </div>
 
-</div><!-- /dv-content -->
+    <!-- ══ Carte choroplèthe ════════════════════════════════ -->
+    <div class="dv-card dv-animate dv-animate-d2">
 
-<!-- ═══════════════════════════════════════════════════════════════════════
-     SCRIPTS
-════════════════════════════════════════════════════════════════════════ -->
+        <!-- Header card -->
+        <div class="dv-card-header">
+            <i class="bi bi-map"></i>
+            <span id="map-card-title">Cas notifiés aujourd'hui — <?= date('d/m/Y') ?></span>
+            <span class="dv-badge" id="map-total-badge"
+                  style="margin-left:8px;background:#e8f4fd;color:#2980b9;">
+                Total : <?= $totalNotifToday ?>
+            </span>
+            <div style="margin-left:auto;" class="map-size-controls">
+                <button class="dv-btn dv-btn-outline" style="padding:4px 10px;font-size:.75rem;"
+                        onclick="setMapHeight(380)">Petite</button>
+                <button class="dv-btn dv-btn-outline" style="padding:4px 10px;font-size:.75rem;"
+                        onclick="setMapHeight(540)">Moyenne</button>
+                <button class="dv-btn dv-btn-outline" style="padding:4px 10px;font-size:.75rem;"
+                        onclick="setMapHeight(720)">Grande</button>
+                <button class="dv-btn dv-btn-outline" style="padding:4px 10px;font-size:.75rem;"
+                        onclick="toggleFullscreen()">
+                    <i class="bi bi-arrows-fullscreen"></i> Plein écran
+                </button>
+            </div>
+        </div>
+
+        <!-- Onglets sélection couche -->
+        <div style="padding:14px 18px 0;">
+            <div class="map-nav">
+                <button class="map-tab t-blue" id="btn-notif-today"
+                        onclick="switchMap('notif_today')">
+                    <span class="tab-dot" style="background:#fff;opacity:.8;"></span>
+                    <span>Notifiés aujourd'hui
+                        <span class="tab-sub"><?= date('d/m/Y') ?></span>
+                    </span>
+                </button>
+                <button class="map-tab" id="btn-confirm-today"
+                        onclick="switchMap('confirm_today')">
+                    <span class="tab-dot" style="background:#c0392b;"></span>
+                    <span>Confirmés aujourd'hui
+                        <span class="tab-sub"><?= date('d/m/Y') ?></span>
+                    </span>
+                </button>
+                <button class="map-tab" id="btn-notif-cumul"
+                        onclick="switchMap('notif_cumul')">
+                    <span class="tab-dot" style="background:#e67e22;"></span>
+                    <span>Notifiés cumulés
+                        <span class="tab-sub">Toute la période</span>
+                    </span>
+                </button>
+                <button class="map-tab" id="btn-confirm-4w"
+                        onclick="switchMap('confirm_4w')">
+                    <span class="tab-dot" style="background:#27ae60;"></span>
+                    <span>Confirmés 4 semaines
+                        <span class="tab-sub"><?= date('d/m/Y', $week4Start) ?> → <?= date('d/m/Y') ?></span>
+                    </span>
+                </button>
+            </div>
+        </div>
+
+        <!-- SVG de la carte -->
+        <div id="map-svg-wrap" style="margin:0 18px;">
+            <div id="map-loading">
+                <div class="spin-ring"></div>
+                <span style="font-size:.82rem;color:var(--text-secondary);">Chargement de la carte…</span>
+            </div>
+            <svg id="svg-map"
+                 viewBox="0 0 800 620"
+                 preserveAspectRatio="xMidYMid meet"
+                 xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+
+        <!-- Légende -->
+        <div style="display:flex;flex-wrap:wrap;gap:14px;padding:14px 18px 18px;">
+            <div class="map-legend" id="dyn-legend" style="min-width:160px;">
+                <!-- généré JS -->
+            </div>
+            <div class="map-legend" style="flex:1;min-width:200px;">
+                <div style="font-weight:700;margin-bottom:4px;color:var(--text-primary);">
+                    <i class="bi bi-info-circle"></i> Informations
+                </div>
+                <div style="font-size:.75rem;line-height:1.8;color:var(--text-muted);">
+                    <strong>Source :</strong> Google Sheets DVSSER<br>
+                    <strong>Fond de carte :</strong> district_cache.geojson (DISTRICT.shp)<br>
+                    <strong>Confirmés :</strong> conclusion contenant « confirmé »<br>
+                    <strong>4 semaines :</strong> <?= date('d/m/Y', $week4Start) ?> → <?= date('d/m/Y') ?>
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /dv-card carte -->
+
+    <!-- ══ Top districts ════════════════════════════════════ -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;"
+         class="dv-animate dv-animate-d2">
+
+        <!-- Top 5 cumulés -->
+        <div class="dv-card">
+            <div class="dv-card-header">
+                <i class="bi bi-trophy"></i> Top 5 — Cas notifiés cumulés
+                <span class="dv-badge" style="margin-left:auto;"><?= $totalNotifCumul ?> total</span>
+            </div>
+            <?php
+            $colors5 = ['#e53e3e','#f59e0b','#2980b9','#27ae60','#7c3aed'];
+            $maxC = max(array_column($top5cumul,'notif_cumul') ?: [1]);
+            $i = 1;
+            foreach ($top5cumul as $dist => $d):
+                $pct = $maxC > 0 ? round($d['notif_cumul']/$maxC*100) : 0;
+                $col = $colors5[$i-1] ?? '#aaa';
+            ?>
+            <div class="top-bar-item">
+                <div class="top-num" style="background:<?= $col ?>;"><?= $i ?></div>
+                <div style="flex:1;">
+                    <div style="font-weight:700;font-size:.82rem;color:var(--text-primary);">
+                        <?= htmlspecialchars($dist) ?>
+                    </div>
+                    <div class="bar-bg" style="margin-top:4px;">
+                        <div class="bar-fill" style="width:<?= $pct ?>%;background:<?= $col ?>;"></div>
+                    </div>
+                </div>
+                <div style="font-weight:800;font-size:.9rem;color:<?= $col ?>;min-width:32px;text-align:right;">
+                    <?= $d['notif_cumul'] ?>
+                </div>
+            </div>
+            <?php $i++; endforeach; ?>
+        </div>
+
+        <!-- Top 5 confirmés 4 semaines -->
+        <div class="dv-card">
+            <div class="dv-card-header">
+                <i class="bi bi-calendar-range"></i> Top 5 — Confirmés 4 dernières semaines
+                <span class="dv-badge" style="margin-left:auto;background:#eafaf1;color:#27ae60;">
+                    <?= $totalConfirm4w ?> total
+                </span>
+            </div>
+            <?php
+            $maxC4 = max(array_column($top5conf4w,'confirm_4w') ?: [1]);
+            $i2 = 1;
+            foreach ($top5conf4w as $dist => $d):
+                $pct = $maxC4 > 0 ? round($d['confirm_4w']/$maxC4*100) : 0;
+                $col = $colors5[$i2-1] ?? '#aaa';
+            ?>
+            <div class="top-bar-item">
+                <div class="top-num" style="background:<?= $col ?>;"><?= $i2 ?></div>
+                <div style="flex:1;">
+                    <div style="font-weight:700;font-size:.82rem;color:var(--text-primary);">
+                        <?= htmlspecialchars($dist) ?>
+                    </div>
+                    <div class="bar-bg" style="margin-top:4px;">
+                        <div class="bar-fill" style="width:<?= $pct ?>%;background:<?= $col ?>;"></div>
+                    </div>
+                </div>
+                <div style="font-weight:800;font-size:.9rem;color:<?= $col ?>;min-width:32px;text-align:right;">
+                    <?= $d['confirm_4w'] ?>
+                </div>
+            </div>
+            <?php $i2++; endforeach; ?>
+        </div>
+
+    </div>
+
+</div><!-- /.dv-content -->
+
+<!-- ══ Scripts ══════════════════════════════════════════════════════ -->
 <script>
-// ── Données PHP → JS ─────────────────────────────────────────────────────
-const DISTRICT_DATA = <?= $jsonDistrictData ?>;
-const TODAY_STR     = '<?= date('d/m/Y') ?>';
-const WEEK4_START   = '<?= date('d/m/Y', $week4Start) ?>';
-
-// ── Config des 4 couches ─────────────────────────────────────────────────
-const MAP_CONFIGS = {
-  notif_today: {
-    field: 'notif_today',
-    title: 'Cas notifiés aujourd\'hui',
-    sub:   TODAY_STR + ' · Cliquez sur un district',
-    icon:  'bi-calendar-day',
-    iconColor: '#2980b9',
-    badge: 'background:#e8f4fd;color:#2980b9;',
-    colors: ['#EBF5FB','#AED6F1','#5DADE2','#2980B9','#1A5276'],
-    breaks: null, // calculé dynamiquement
-    legendLabel: 'Cas notifiés aujourd\'hui',
-    period: 'Aujourd\'hui (' + TODAY_STR + ')',
-    btnId: 'btn-notif-today',
-    btnClass: 'active',
-  },
-  confirm_today: {
-    field: 'confirm_today',
-    title: 'Cas confirmés aujourd\'hui',
-    sub:   TODAY_STR + ' · Cliquez sur un district',
-    icon:  'bi-virus',
-    iconColor: '#c0392b',
-    badge: 'background:#fdecea;color:#c0392b;',
-    colors: ['#FDEDEC','#F1948A','#E74C3C','#C0392B','#7B241C'],
-    breaks: null,
-    legendLabel: 'Cas confirmés aujourd\'hui',
-    period: 'Aujourd\'hui (' + TODAY_STR + ')',
-    btnId: 'btn-confirm-today',
-    btnClass: 'active-red',
-  },
-  notif_cumul: {
-    field: 'notif_cumul',
-    title: 'Cas notifiés cumulés',
-    sub:   'Toute la période · Cliquez sur un district',
-    icon:  'bi-layers',
-    iconColor: '#e67e22',
-    badge: 'background:#fef3e2;color:#e67e22;',
-    colors: ['#FEF9E7','#FAD7A0','#F5B041','#E67E22','#784212'],
-    breaks: null,
-    legendLabel: 'Cas notifiés cumulés',
-    period: 'Toute la période',
-    btnId: 'btn-notif-cumul',
-    btnClass: 'active-orange',
-  },
-  confirm_4w: {
-    field: 'confirm_4w',
-    title: 'Cas confirmés — 4 dernières semaines',
-    sub:   WEEK4_START + ' → ' + TODAY_STR + ' · Cliquez sur un district',
-    icon:  'bi-calendar-range',
-    iconColor: '#27ae60',
-    badge: 'background:#eafaf1;color:#27ae60;',
-    colors: ['#EAFAF1','#A9DFBF','#52BE80','#27AE60','#145A32'],
-    breaks: null,
-    legendLabel: '4 dernières semaines',
-    period: WEEK4_START + ' → ' + TODAY_STR,
-    btnId: 'btn-confirm-4w',
-    btnClass: 'active-green',
-  },
+// ═══════════════════════════════════════════════════
+// DONNÉES PHP → JS
+// ═══════════════════════════════════════════════════
+const DISTRICT_DATA = <?= json_encode($districtData, JSON_UNESCAPED_UNICODE) ?>;
+const TOTALS = {
+    notif_today:   <?= $totalNotifToday ?>,
+    confirm_today: <?= $totalConfirmToday ?>,
+    notif_cumul:   <?= $totalNotifCumul ?>,
+    confirm_4w:    <?= $totalConfirm4w ?>,
 };
 
-// ── Init Leaflet ──────────────────────────────────────────────────────────
-const svg = document.getElementById("svg-map");
+// ═══════════════════════════════════════════════════
+// CONFIG 4 COUCHES
+// ═══════════════════════════════════════════════════
+const MAP_CFG = {
+    notif_today: {
+        title:       'Cas notifiés aujourd\'hui — <?= date('d/m/Y') ?>',
+        label:       'Notifiés aujourd\'hui',
+        activeClass: 't-blue',
+        badgeStyle:  'background:#e8f4fd;color:#2980b9;',
+        colors:      ['#EBF5FB','#AED6F1','#5DADE2','#2980B9','#1A5276'],
+    },
+    confirm_today: {
+        title:       'Cas confirmés aujourd\'hui — <?= date('d/m/Y') ?>',
+        label:       'Confirmés aujourd\'hui',
+        activeClass: 't-red',
+        badgeStyle:  'background:#fdecea;color:#c0392b;',
+        colors:      ['#FDEDEC','#F5B7B1','#E74C3C','#C0392B','#7B241C'],
+    },
+    notif_cumul: {
+        title:       'Cas notifiés cumulés — toute la période',
+        label:       'Notifiés cumulés',
+        activeClass: 't-orange',
+        badgeStyle:  'background:#fef3e2;color:#e67e22;',
+        colors:      ['#FEF9E7','#FAD7A0','#F5B041','#E67E22','#784212'],
+    },
+    confirm_4w: {
+        title:       'Cas confirmés — 4 dernières semaines',
+        label:       'Confirmés 4 sem.',
+        activeClass: 't-green',
+        badgeStyle:  'background:#eafaf1;color:#27ae60;',
+        colors:      ['#EAFAF1','#A9DFBF','#52BE80','#27AE60','#145A32'],
+    },
+};
 
-let GEOJSON_DATA = null;
-let currentField = 'notif_today';
+const BTN_IDS = {
+    notif_today:   'btn-notif-today',
+    confirm_today: 'btn-confirm-today',
+    notif_cumul:   'btn-notif-cumul',
+    confirm_4w:    'btn-confirm-4w',
+};
 
-const width = 1000;
-const height = 560;
+// ═══════════════════════════════════════════════════
+// SVG + PROJECTION MADAGASCAR
+// ═══════════════════════════════════════════════════
+const svg    = document.getElementById('svg-map');
+const SVG_W  = 800;
+const SVG_H  = 620;
+const PAD    = 18; // marges internes
 
-svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+// Bounding box serrée de Madagascar (WGS84)
+// On découpe précisément pour ne montrer QUE l'île
+const MDG = { minLon:43.15, maxLon:50.55, minLat:-25.65, maxLat:-11.85 };
 
-fetch("dist2.geojson")
-.then(r => r.json())
-.then(data => {
+function project(lon, lat) {
+    // Garde uniquement les coordonnées dans la bbox Madagascar
+    const uw = SVG_W - PAD * 2;
+    const uh = SVG_H - PAD * 2;
+    const x = PAD + ((lon - MDG.minLon) / (MDG.maxLon - MDG.minLon)) * uw;
+    const y = PAD + ((MDG.maxLat - lat) / (MDG.maxLat - MDG.minLat)) * uh;
+    return [x, y];
+}
 
-    GEOJSON_DATA = data;
-
-    renderMap(currentField);
-
-})
-.catch(err => {
-    console.error(err);
-
-    document.getElementById("map-container").innerHTML = `
-        <div style="padding:30px;text-align:center;color:red;">
-            Erreur chargement dist2.geojson
-        </div>
-    `;
-});
-
-function renderMap(field)
-{
-    currentField = field;
-
-    svg.innerHTML = "";
-
-    const cfg = MAP_CONFIGS[field];
-
-    const colors = cfg.colors;
-
-    const breaks = computeBreaks(field, 5);
-
-    let allCoords = [];
-
-    GEOJSON_DATA.features.forEach(feature => {
-
-        const geom = feature.geometry;
-
-        if (geom.type === "Polygon") {
-
-            geom.coordinates.forEach(ring => {
-                ring.forEach(c => allCoords.push(c));
-            });
-
-        }
-
-        if (geom.type === "MultiPolygon") {
-
-            geom.coordinates.forEach(poly => {
-                poly.forEach(ring => {
-                    ring.forEach(c => allCoords.push(c));
-                });
-            });
-
-        }
-
-    });
-
-    const lons = allCoords.map(c => c[0]);
-    const lats = allCoords.map(c => c[1]);
-
-    const minLon = Math.min(...lons);
-    const maxLon = Math.max(...lons);
-
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-
-    function project(lon, lat)
-    {
-        const x = ((lon - minLon) / (maxLon - minLon)) * width;
-
-        const y =
-            height -
-            ((lat - minLat) / (maxLat - minLat)) * height;
-
-        return [x, y];
+// Filtre : ignorer les polygones entièrement hors de Madagascar
+function isInMdg(coords) {
+    for (const [lon, lat] of coords) {
+        if (lon >= MDG.minLon && lon <= MDG.maxLon && lat >= MDG.minLat && lat <= MDG.maxLat)
+            return true;
     }
+    return false;
+}
 
-    GEOJSON_DATA.features.forEach(feature => {
+function flatCoords(geom) {
+    const pts = [];
+    if (geom.type === 'Polygon')
+        geom.coordinates.forEach(r => r.forEach(c => pts.push(c)));
+    if (geom.type === 'MultiPolygon')
+        geom.coordinates.forEach(p => p.forEach(r => r.forEach(c => pts.push(c))));
+    return pts;
+}
 
-        const districtName = getDistrictName(feature);
+// ═══════════════════════════════════════════════════
+// CORRESPONDANCE NOMS DISTRICTS
+// ═══════════════════════════════════════════════════
+function normStr(s) {
+    return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+}
+function getDistrictName(feature) {
+    const p = feature.properties;
+    return p.NOM_DISTRI || p.NOM_DIST || p.NOMDIST || p.District || p.district
+        || p.NAME_2 || p.NAME_3 || p.NAME || p.NOM || p.nom || p.name || '';
+}
+function findDistrictKey(geoName) {
+    if (!geoName) return null;
+    const ng = normStr(geoName);
+    for (const k of Object.keys(DISTRICT_DATA))
+        if (normStr(k) === ng) return k;
+    for (const k of Object.keys(DISTRICT_DATA))
+        if (normStr(k).includes(ng) || ng.includes(normStr(k))) return k;
+    return null;
+}
 
-        const matchedKey = findDistrictKey(districtName);
+// ═══════════════════════════════════════════════════
+// SEUILS + COULEURS
+// ═══════════════════════════════════════════════════
+function computeBreaks(field, n) {
+    const vals = Object.values(DISTRICT_DATA).map(d=>d[field]||0).filter(v=>v>0).sort((a,b)=>a-b);
+    if (!vals.length) return [0,1,2,3,4];
+    const max = vals[vals.length-1];
+    return Array.from({length:n}, (_,i) => Math.round((max/n)*i));
+}
+function getColor(value, breaks, colors) {
+    if (!value || value === 0) return null;
+    for (let i = breaks.length-1; i >= 0; i--)
+        if (value >= breaks[i]) return colors[Math.min(i, colors.length-1)];
+    return colors[0];
+}
+function noDataFill() {
+    return document.documentElement.getAttribute('data-theme') === 'dark' ? '#2d3748' : '#e9ecef';
+}
+function strokeCol() {
+    return document.documentElement.getAttribute('data-theme') === 'dark' ? '#4a5568' : '#cbd5e0';
+}
 
-        const value =
-            matchedKey
-                ? (DISTRICT_DATA[matchedKey][field] || 0)
-                : 0;
+// ═══════════════════════════════════════════════════
+// RENDU SVG
+// ═══════════════════════════════════════════════════
+let curField  = 'notif_today';
+let GEOJSON   = null;
+let pendingField = null;
 
-        const color = getColor(value, breaks, colors);
+function buildPath(geom) {
+    let d = '';
+    function drawRing(ring) {
+        ring.forEach((c, i) => {
+            const [x, y] = project(c[0], c[1]);
+            d += (i === 0 ? `M${x.toFixed(1)} ${y.toFixed(1)}` : ` L${x.toFixed(1)} ${y.toFixed(1)}`);
+        });
+        d += ' Z ';
+    }
+    if (geom.type === 'Polygon') geom.coordinates.forEach(drawRing);
+    if (geom.type === 'MultiPolygon') geom.coordinates.forEach(poly => poly.forEach(drawRing));
+    return d;
+}
 
-        const path = document.createElementNS(
-            "http://www.w3.org/2000/svg",
-            "path"
-        );
+function renderMap(field) {
+    if (!GEOJSON) return;
+    curField = field;
+    svg.innerHTML = '';
 
-        let d = "";
+    const cfg    = MAP_CFG[field];
+    const colors = cfg.colors;
+    const breaks = computeBreaks(field, 5);
+    const noData = noDataFill();
+    const stroke = strokeCol();
 
-        function drawPolygon(coords)
-        {
-            coords.forEach(ring => {
+    GEOJSON.features.forEach(feature => {
+        // Filtrer les géométries hors Madagascar
+        const pts = flatCoords(feature.geometry);
+        if (!isInMdg(pts)) return;
 
-                ring.forEach((coord, i) => {
+        const name  = getDistrictName(feature);
+        const key   = findDistrictKey(name);
+        const value = key ? (DISTRICT_DATA[key][field] || 0) : 0;
+        const fill  = getColor(value, breaks, colors) || noData;
 
-                    const [x, y] = project(coord[0], coord[1]);
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', buildPath(feature.geometry));
+        path.setAttribute('fill', fill);
+        path.setAttribute('stroke', stroke);
+        path.setAttribute('stroke-width', '0.55');
+        path.classList.add('district');
 
-                    if (i === 0)
-                    {
-                        d += `M ${x} ${y} `;
-                    }
-                    else
-                    {
-                        d += `L ${x} ${y} `;
-                    }
-
-                });
-
-                d += "Z ";
-            });
-        }
-
-        const geom = feature.geometry;
-
-        if (geom.type === "Polygon")
-        {
-            drawPolygon(geom.coordinates);
-        }
-
-        if (geom.type === "MultiPolygon")
-        {
-            geom.coordinates.forEach(poly => {
-                drawPolygon(poly);
-            });
-        }
-
-        path.setAttribute("d", d);
-
-        path.setAttribute("fill", color);
-
-        path.setAttribute("class", "district");
-
-        path.addEventListener("click", e => {
-
-            const d =
-                matchedKey
-                    ? DISTRICT_DATA[matchedKey]
-                    : null;
-
-            showTooltip(
-                e.pageX,
-                e.pageY,
-                districtName,
-                d
-            );
-
+        // Interactions
+        path.addEventListener('mouseenter', () => {
+            path.setAttribute('stroke', 'var(--accent,#0a6cbc)');
+            path.setAttribute('stroke-width', '1.6');
+        });
+        path.addEventListener('mouseleave', () => {
+            path.setAttribute('stroke', stroke);
+            path.setAttribute('stroke-width', '0.55');
+        });
+        path.addEventListener('click', e => {
+            showTooltip(e.clientX, e.clientY, name || '—', key ? DISTRICT_DATA[key] : null);
         });
 
         svg.appendChild(path);
-
     });
 
     updateUI(field, breaks, colors);
 }
 
-function showTooltip(x, y, district, d)
-{
-    let tooltip = document.getElementById("tooltip");
+// ═══════════════════════════════════════════════════
+// MISE À JOUR UI
+// ═══════════════════════════════════════════════════
+function updateUI(field, breaks, colors) {
+    const cfg = MAP_CFG[field];
 
-    if (!tooltip)
-    {
-        tooltip = document.createElement("div");
+    // Titre + badge header
+    document.getElementById('map-card-title').textContent = cfg.title;
+    const badge = document.getElementById('map-total-badge');
+    badge.textContent  = 'Total : ' + (TOTALS[field] || 0);
+    badge.style.cssText = cfg.badgeStyle
+        + 'margin-left:8px;border-radius:20px;padding:2px 12px;font-size:.78rem;font-weight:700;';
 
-        tooltip.id = "tooltip";
+    // Onglets
+    Object.keys(BTN_IDS).forEach(f => {
+        const btn = document.getElementById(BTN_IDS[f]);
+        if (!btn) return;
+        // Retirer toutes les classes actives
+        btn.className = 'map-tab';
+        if (f === field) btn.classList.add(MAP_CFG[f].activeClass);
+    });
 
-        tooltip.className = "map-tooltip";
-
-        document.body.appendChild(tooltip);
-    }
-
-    tooltip.style.left = x + 10 + "px";
-
-    tooltip.style.top = y + 10 + "px";
-
-    tooltip.innerHTML = `
-        <strong>${district}</strong><br><br>
-
-        📅 Notifiés aujourd'hui :
-        <strong style="color:#2980b9;">
-            ${d ? d.notif_today : 0}
-        </strong><br>
-
-        🔬 Confirmés aujourd'hui :
-        <strong style="color:#c0392b;">
-            ${d ? d.confirm_today : 0}
-        </strong><br>
-
-        📊 Cumulés :
-        <strong style="color:#e67e22;">
-            ${d ? d.notif_cumul : 0}
-        </strong><br>
-
-        ✅ Confirmés 4 semaines :
-        <strong style="color:#27ae60;">
-            ${d ? d.confirm_4w : 0}
-        </strong>
-    `;
+    // Légende dynamique
+    const noData = noDataFill();
+    let html = `<div style="font-weight:700;margin-bottom:4px;color:var(--text-primary);">${cfg.label}</div>`;
+    html += `<div><span class="legend-dot" style="background:${noData};border:1px solid var(--border);"></span> Aucun cas</div>`;
+    const labels = [
+        '1',
+        (breaks[1]||1) + (breaks[2] ? ' – '+(breaks[2]-1) : '+'),
+        breaks[2] + (breaks[3] ? ' – '+(breaks[3]-1) : '+'),
+        breaks[3] + (breaks[4] ? ' – '+(breaks[4]-1) : '+'),
+        '≥ ' + (breaks[4]||5),
+    ];
+    colors.forEach((col, i) => {
+        html += `<div><span class="legend-dot" style="background:${col};"></span> ${labels[i]}</div>`;
+    });
+    document.getElementById('dyn-legend').innerHTML = html;
 }
 
-document.addEventListener("click", e => {
+// ═══════════════════════════════════════════════════
+// TOOLTIP
+// ═══════════════════════════════════════════════════
+let ttEl = null;
 
-    if (!e.target.classList.contains("district"))
-    {
-        const t = document.getElementById("tooltip");
-
-        if (t) t.remove();
+function showTooltip(cx, cy, name, d) {
+    if (!ttEl) {
+        ttEl = document.createElement('div');
+        ttEl.className = 'carto-tooltip';
+        document.body.appendChild(ttEl);
     }
+    ttEl.innerHTML = `
+        <div class="tt-name"><i class="bi bi-geo-alt"></i> ${name}</div>
+        <div class="tt-row">
+            <span><span style="color:#2980b9;">▌</span> Notifiés aujourd'hui</span>
+            <span class="tt-val" style="color:#2980b9;">${d ? d.notif_today : 0}</span>
+        </div>
+        <div class="tt-row">
+            <span><span style="color:#c0392b;">▌</span> Confirmés aujourd'hui</span>
+            <span class="tt-val" style="color:#c0392b;">${d ? d.confirm_today : 0}</span>
+        </div>
+        <div class="tt-row">
+            <span><span style="color:#e67e22;">▌</span> Notifiés cumulés</span>
+            <span class="tt-val" style="color:#e67e22;">${d ? d.notif_cumul : 0}</span>
+        </div>
+        <div class="tt-row">
+            <span><span style="color:#27ae60;">▌</span> Confirmés 4 semaines</span>
+            <span class="tt-val" style="color:#27ae60;">${d ? d.confirm_4w : 0}</span>
+        </div>`;
+    ttEl.style.display = 'block';
+    const tw = ttEl.offsetWidth || 220, th = ttEl.offsetHeight || 160;
+    const vw = window.innerWidth,    vh = window.innerHeight;
+    ttEl.style.left = (cx + 16 + tw > vw ? cx - tw - 16 : cx + 16) + 'px';
+    ttEl.style.top  = (cy + 16 + th > vh ? cy - th - 16 : cy + 16) + 'px';
+}
+document.addEventListener('click', e => {
+    if (!e.target.classList.contains('district') && ttEl) ttEl.style.display = 'none';
+});
 
+// ═══════════════════════════════════════════════════
+// CONTRÔLES TAILLE
+// ═══════════════════════════════════════════════════
+function setMapHeight(h) { svg.style.height = h + 'px'; }
+function toggleFullscreen() {
+    if (svg.style.height !== '90vh') { svg._oh = svg.style.height||'540px'; svg.style.height='90vh'; }
+    else svg.style.height = svg._oh || '540px';
+}
+
+// ═══════════════════════════════════════════════════
+// SWITCH CARTE (sans alert)
+// ═══════════════════════════════════════════════════
+function switchMap(field) {
+    if (!GEOJSON) { pendingField = field; return; }
+    renderMap(field);
+}
+
+// ═══════════════════════════════════════════════════
+// CHARGEMENT GEOJSON
+// ═══════════════════════════════════════════════════
+const loadingEl = document.getElementById('map-loading');
+
+fetch('district_cache.geojson')
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(data => {
+        GEOJSON = data;
+        loadingEl.remove();
+        renderMap(pendingField || 'notif_today');
+    })
+    .catch(err => {
+        loadingEl.innerHTML = `
+            <i class="bi bi-exclamation-triangle" style="font-size:2.2rem;color:#e67e22;"></i>
+            <div style="font-size:.85rem;color:var(--text-secondary);text-align:center;max-width:360px;">
+                <strong style="color:var(--text-primary);">Fichier GeoJSON introuvable</strong><br>
+                Exécutez <a href="shp2geojson.php" style="color:var(--accent);">shp2geojson.php</a>
+                pour générer <code>district_cache.geojson</code> à partir de DISTRICT.shp<br>
+                <small style="color:var(--text-muted);">${err.message}</small>
+            </div>
+            <a href="shp2geojson.php" class="dv-btn dv-btn-primary" style="font-size:.82rem;margin-top:6px;">
+                <i class="bi bi-tools"></i> Convertir DISTRICT.shp
+            </a>`;
+    });
+
+// Sync dark mode → re-render couleurs
+const dvThemeBtn = document.getElementById('dvThemeBtn');
+if (dvThemeBtn) dvThemeBtn.addEventListener('click', () => {
+    setTimeout(() => { if (GEOJSON) renderMap(curField); }, 160);
 });
 </script>
 
