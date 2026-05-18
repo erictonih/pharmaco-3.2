@@ -7,7 +7,7 @@ if (!isset($_SESSION["user_id"])) {
 
 // ── Vérification des droits ────────────────────────────────────────────────
 $PAGE_ROLES = [
-    'analyse_mpox.php' => ['Super Admin', 'Visiteur', 'Visualiseur', 'Analyste'],
+    'analyse_mpox.php' => ['Super Admin', 'Visualiseur', 'Analyste'],
 ];
 $userRole = $_SESSION["role"] ?? '';
 if (!in_array($userRole, $PAGE_ROLES['analyse_mpox.php'])) {
@@ -170,11 +170,12 @@ if (!empty($rawRows)) {
 // ── Index des colonnes importantes ────────────────────────────────────────
 $COL = [
     'cas'           => 'Cas',
+    'date_cousp'    => 'Date cousp',
     'date_notif'    => 'Date de notification',
     'date_signes'   => 'Date de début des signes',
     'region'        => 'Region',
     'district'      => 'District',
-    'classification'=> 'Classification de cas( cas suspect, confirmé, probable, non cas)',
+    'classification'=> 'Classification',
     'conclusion'    => 'Conclusion 1',
     'age_an'        => 'Age (année)',
     'tranche_age'   => 'tranche_d_age',
@@ -224,8 +225,10 @@ foreach ($records as $r) {
 	 
    
     // Classification
-    if (str_contains($cas,'confirm')) {$confirmes++;}
-           elseif (str_contains($cas,'suspect')) {$suspects++;}
+    if (str_contains($classif,'pos')) {$confirmes++;}
+        elseif (str_contains($classif,'suspect')) {$suspects++;}
+    	elseif (str_contains($classif,'pro')) {$probables++;}
+    	elseif (str_contains($classif,'neg')) {$probables++;}
     // Évolution
     $evolLow = strtolower($evol);
     if (str_contains($evolLow, 'déc') || str_contains($evolLow, 'dec'))  $deces++;
@@ -418,6 +421,30 @@ $jsonRegD     = json_encode(array_values(array_map(fn($v)=>$v['deces'],    $byRe
             <i class="bi bi-chevron-right" style="font-size:.65rem;"></i>
             <span>Analyse Mpox</span>
         </div>
+    </div>
+
+    <!-- Boutons navigation vers la cartographie ─────────────────────────── -->
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+        <a href="carto_mpox.php" class="dv-btn dv-btn-primary" style="display:flex;align-items:center;gap:8px;padding:10px 20px;border-radius:10px;font-weight:700;text-decoration:none;background:#2980b9;color:#fff;border:none;">
+            <i class="bi bi-map"></i>
+            Cartographie par District
+        </a>
+        <a href="carto_mpox.php?map=notif_today" class="dv-btn" style="display:flex;align-items:center;gap:8px;padding:10px 18px;border-radius:10px;font-weight:600;text-decoration:none;background:#e8f4fd;color:#2980b9;border:1px solid #aed6f1;">
+            <i class="bi bi-calendar-day"></i>
+            Notifiés aujourd'hui
+        </a>
+        <a href="carto_mpox.php?map=confirm_today" class="dv-btn" style="display:flex;align-items:center;gap:8px;padding:10px 18px;border-radius:10px;font-weight:600;text-decoration:none;background:#fdecea;color:#c0392b;border:1px solid #f5c6c6;">
+            <i class="bi bi-virus"></i>
+            Confirmés aujourd'hui
+        </a>
+        <a href="carto_mpox.php?map=notif_cumul" class="dv-btn" style="display:flex;align-items:center;gap:8px;padding:10px 18px;border-radius:10px;font-weight:600;text-decoration:none;background:#fef3e2;color:#e67e22;border:1px solid #fadaa7;">
+            <i class="bi bi-layers"></i>
+            Notifiés cumulés
+        </a>
+        <a href="carto_mpox.php?map=confirm_4w" class="dv-btn" style="display:flex;align-items:center;gap:8px;padding:10px 18px;border-radius:10px;font-weight:600;text-decoration:none;background:#eafaf1;color:#27ae60;border:1px solid #a9dfbf;">
+            <i class="bi bi-calendar-range"></i>
+            Confirmés 4 semaines
+        </a>
     </div>
 
     <!-- Barre de synchronisation ─────────────────────────────────────────── -->
