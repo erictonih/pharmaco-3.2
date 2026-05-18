@@ -6,11 +6,11 @@ if (!isset($_SESSION["user_id"])) {
 }
 
 $PAGE_ROLES = [
-    'carto_mpox.php' => ['Super Admin', 'Visiteur', 'Visualiseur', 'Analyste'],
+    'carto_mpox.php' => ['Super Admin', 'Visualiseur', 'Analyste'],
 ];
 $userRole = $_SESSION["role"] ?? '';
 if (!in_array($userRole, $PAGE_ROLES['carto_mpox.php'])) {
-    header("Location: index.php");
+    header("Location: access_denied.php");
     exit();
 }
 
@@ -18,8 +18,10 @@ $page_title  = 'Cartographie Mpox';
 $active_page = 'analyse_mpox';
 $breadcrumb  = ['Accueil' => 'index.php', 'Analyse Mpox' => 'analyse_mpox.php', 'Cartographie' => ''];
 include 'sidebar.php';
-════════════════
-//  CONFIG & DONNÉES════════════════
+
+// ═══════════════════════════════════════════════════════════════════
+//  CONFIG & DONNÉES
+// ═══════════════════════════════════════════════════════════════════
 define('SHEET_ID',    '1VdqjKcr00GmRI-FuOopXhRwYolvkUJmtp3DSV9ow4CE');
 define('SHEET_RANGE', 'BDD 28042026!A1:BF5000');
 define('SA_KEY_FILE', __DIR__ . '/config/google_service_account.json');
@@ -472,7 +474,9 @@ $top5conf4w = array_slice($top5conf4w, 0, 5, true);
 
 <!-- ══ Scripts ══════════════════════════════════════════════════════ -->
 <script>
+// ═══════════════════════════════════════════════════
 // DONNÉES PHP → JS
+// ═══════════════════════════════════════════════════
 const DISTRICT_DATA = <?= json_encode($districtData, JSON_UNESCAPED_UNICODE) ?>;
 const TOTALS = {
     notif_today:   <?= $totalNotifToday ?>,
@@ -481,7 +485,9 @@ const TOTALS = {
     confirm_4w:    <?= $totalConfirm4w ?>,
 };
 
+// ═══════════════════════════════════════════════════
 // CONFIG 4 COUCHES
+// ═══════════════════════════════════════════════════
 const MAP_CFG = {
     notif_today: {
         title:       'Cas notifiés aujourd\'hui — <?= date('d/m/Y') ?>',
@@ -520,7 +526,9 @@ const BTN_IDS = {
     confirm_4w:    'btn-confirm-4w',
 };
 
+// ═══════════════════════════════════════════════════
 // SVG + PROJECTION MADAGASCAR
+// ═══════════════════════════════════════════════════
 const svg    = document.getElementById('svg-map');
 const SVG_W  = 800;
 const SVG_H  = 620;
@@ -557,14 +565,16 @@ function flatCoords(geom) {
     return pts;
 }
 
+// ═══════════════════════════════════════════════════
 // CORRESPONDANCE NOMS DISTRICTS
+// ═══════════════════════════════════════════════════
 function normStr(s) {
     return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
 }
 function getDistrictName(feature) {
     const p = feature.properties;
     return p.NOM_DISTRI || p.NOM_DIST || p.NOMDIST || p.District || p.district
-        || p.NAME_2 || p.NAME_3 || p.NAME || p.NOM || p.nom || p.name || '';
+        || p.NAME_3 || p.NAME || p.NOM || p.nom || p.name || '';
 }
 function findDistrictKey(geoName) {
     if (!geoName) return null;
@@ -576,7 +586,9 @@ function findDistrictKey(geoName) {
     return null;
 }
 
+// ═══════════════════════════════════════════════════
 // SEUILS + COULEURS
+// ═══════════════════════════════════════════════════
 function computeBreaks(field, n) {
     const vals = Object.values(DISTRICT_DATA).map(d=>d[field]||0).filter(v=>v>0).sort((a,b)=>a-b);
     if (!vals.length) return [0,1,2,3,4];
@@ -596,7 +608,9 @@ function strokeCol() {
     return document.documentElement.getAttribute('data-theme') === 'dark' ? '#4a5568' : '#cbd5e0';
 }
 
+// ═══════════════════════════════════════════════════
 // RENDU SVG
+// ═══════════════════════════════════════════════════
 let curField  = 'notif_today';
 let GEOJSON   = null;
 let pendingField = null;
@@ -662,7 +676,9 @@ function renderMap(field) {
     updateUI(field, breaks, colors);
 }
 
+// ═══════════════════════════════════════════════════
 // MISE À JOUR UI
+// ═══════════════════════════════════════════════════
 function updateUI(field, breaks, colors) {
     const cfg = MAP_CFG[field];
 
@@ -699,7 +715,9 @@ function updateUI(field, breaks, colors) {
     document.getElementById('dyn-legend').innerHTML = html;
 }
 
+// ═══════════════════════════════════════════════════
 // TOOLTIP
+// ═══════════════════════════════════════════════════
 let ttEl = null;
 
 function showTooltip(cx, cy, name, d) {
@@ -736,23 +754,29 @@ document.addEventListener('click', e => {
     if (!e.target.classList.contains('district') && ttEl) ttEl.style.display = 'none';
 });
 
+// ═══════════════════════════════════════════════════
 // CONTRÔLES TAILLE
+// ═══════════════════════════════════════════════════
 function setMapHeight(h) { svg.style.height = h + 'px'; }
 function toggleFullscreen() {
     if (svg.style.height !== '90vh') { svg._oh = svg.style.height||'540px'; svg.style.height='90vh'; }
     else svg.style.height = svg._oh || '540px';
 }
 
+// ═══════════════════════════════════════════════════
 // SWITCH CARTE (sans alert)
+// ═══════════════════════════════════════════════════
 function switchMap(field) {
     if (!GEOJSON) { pendingField = field; return; }
     renderMap(field);
 }
 
+// ═══════════════════════════════════════════════════
 // CHARGEMENT GEOJSON
+// ═══════════════════════════════════════════════════
 const loadingEl = document.getElementById('map-loading');
 
-fetch('district_cache.geojson')
+fetch('Districts.geojson')
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(data => {
         GEOJSON = data;
