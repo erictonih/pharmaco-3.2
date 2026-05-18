@@ -471,12 +471,9 @@ $top5conf4w = array_slice($top5conf4w, 0, 5, true);
     </div>
 
 </div><!-- /.dv-content -->
-
-<!-- ══ Scripts ══════════════════════════════════════════════════════ -->
 <script>
-// ═══════════════════════════════════════════════════
 // DONNÉES PHP → JS
-// ═══════════════════════════════════════════════════
+
 const DISTRICT_DATA = <?= json_encode($districtData, JSON_UNESCAPED_UNICODE) ?>;
 const TOTALS = {
     notif_today:   <?= $totalNotifToday ?>,
@@ -494,7 +491,7 @@ const MAP_CFG = {
         label:       'Notifiés aujourd\'hui',
         activeClass: 't-blue',
         badgeStyle:  'background:#e8f4fd;color:#2980b9;',
-        colors:      ['#EBF5FB','#AED6F1','#5DADE2','#2980B9','#1A5276'],
+        colors:      ['#ffffff','#AED6F1','#5DADE2','#2980B9','#1A5276'],
     },
     confirm_today: {
         title:       'Cas confirmés aujourd\'hui — <?= date('d/m/Y') ?>',
@@ -526,9 +523,7 @@ const BTN_IDS = {
     confirm_4w:    'btn-confirm-4w',
 };
 
-// ═══════════════════════════════════════════════════
 // SVG + PROJECTION MADAGASCAR
-// ═══════════════════════════════════════════════════
 const svg    = document.getElementById('svg-map');
 const SVG_W  = 800;
 const SVG_H  = 620;
@@ -565,9 +560,7 @@ function flatCoords(geom) {
     return pts;
 }
 
-// ═══════════════════════════════════════════════════
 // CORRESPONDANCE NOMS DISTRICTS
-// ═══════════════════════════════════════════════════
 function normStr(s) {
     return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
 }
@@ -586,9 +579,8 @@ function findDistrictKey(geoName) {
     return null;
 }
 
-// ═══════════════════════════════════════════════════
 // SEUILS + COULEURS
-// ═══════════════════════════════════════════════════
+
 function computeBreaks(field, n) {
     const vals = Object.values(DISTRICT_DATA).map(d=>d[field]||0).filter(v=>v>0).sort((a,b)=>a-b);
     if (!vals.length) return [0,1,2,3,4];
@@ -608,9 +600,8 @@ function strokeCol() {
     return document.documentElement.getAttribute('data-theme') === 'dark' ? '#4a5568' : '#cbd5e0';
 }
 
-// ═══════════════════════════════════════════════════
 // RENDU SVG
-// ═══════════════════════════════════════════════════
+
 let curField  = 'notif_today';
 let GEOJSON   = null;
 let pendingField = null;
@@ -676,9 +667,6 @@ function renderMap(field) {
     updateUI(field, breaks, colors);
 }
 
-// ═══════════════════════════════════════════════════
-// MISE À JOUR UI
-// ═══════════════════════════════════════════════════
 function updateUI(field, breaks, colors) {
     const cfg = MAP_CFG[field];
 
