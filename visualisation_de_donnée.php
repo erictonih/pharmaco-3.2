@@ -72,7 +72,7 @@ include 'sidebar.php';
         <!-- Cartes statistiques -->
         <div class="dv-stats-grid dv-animate dv-animate-d1">
             <div class="dv-stat primary">
-                <div class="dv-stat-label">Médicaments vendus</div>
+                <div class="dv-stat-label">Médicaments distribues</div>
                 <div class="dv-stat-value"><?php echo number_format($total_meds); ?></div>
                 <div class="dv-stat-sub">toutes catégories</div>
             </div>
@@ -96,7 +96,7 @@ include 'sidebar.php';
         <!-- Tableau : médicaments -->
         <div class="dv-card dv-animate dv-animate-d2">
             <div class="dv-card-header">
-                <i class="bi bi-table"></i> Médicaments vendus par type
+                <i class="bi bi-table"></i> Médicaments distribues par type
             </div>
             <div class="dv-table-wrap">
                 <table class="dv-table" id="table-medicaments">
@@ -140,7 +140,7 @@ include 'sidebar.php';
         <!-- Tableau : médicaments par mois -->
         <div class="dv-card dv-animate dv-animate-d3">
             <div class="dv-card-header">
-                <i class="bi bi-calendar3"></i> Médicaments vendus par mois
+                <i class="bi bi-calendar3"></i> Médicaments distribues par mois
             </div>
             <div class="dv-table-wrap">
                 <table class="dv-table" id="table-meds-mois">
