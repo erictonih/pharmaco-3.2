@@ -231,10 +231,22 @@ foreach ($records as $r) {
         $ts = strtotime($dateStr);
         if ($ts) {
             $mois = date('Y-m', $ts);
-            if (!isset($byMonth[$mois])) $byMonth[$mois] = ['cas'=>0,'confirmes'=>0,'deces'=>0,'gueris'=>0];
+            if (!isset($byMonth[$mois])) {
+                $byMonth[$mois] = [
+                    'cas' => 0, 'confirmes' => 0, 'deces' => 0, 'gueris' => 0,
+                    'deces_hommes' => 0, 'deces_femmes' => 0,
+                ];
+            }
             $byMonth[$mois]['cas']++;
             if ($isConfirme) $byMonth[$mois]['confirmes']++;
-            if (str_contains($evolLow,'déc')||str_contains($evolLow,'dec')) $byMonth[$mois]['deces']++;
+            if (str_contains($evolLow,'déc')||str_contains($evolLow,'dec')) {
+                $byMonth[$mois]['deces']++;
+                if (str_contains(strtolower($sexe), 'masc') || $sexe === 'M') {
+                    $byMonth[$mois]['deces_hommes']++;
+                } elseif (str_contains(strtolower($sexe), 'fém') || str_contains(strtolower($sexe), 'fem') || $sexe === 'F') {
+                    $byMonth[$mois]['deces_femmes']++;
+                }
+            }
             if (str_contains($evolLow,'gué')||str_contains($evolLow,'gue')) $byMonth[$mois]['gueris']++;
         }
     }
@@ -330,6 +342,8 @@ $jsonSELabels   = json_encode(array_keys($bySE));
 $jsonMonth      = json_encode(array_values(array_map(fn($v)=>$v['cas'],       $byMonth)));
 $jsonMonthC     = json_encode(array_values(array_map(fn($v)=>$v['confirmes'], $byMonth)));
 $jsonMonthD     = json_encode(array_values(array_map(fn($v)=>$v['deces'],     $byMonth)));
+$jsonMonthDH    = json_encode(array_values(array_map(fn($v)=>$v['deces_hommes'], $byMonth)));
+$jsonMonthDF    = json_encode(array_values(array_map(fn($v)=>$v['deces_femmes'], $byMonth)));
 $jsonMonthG     = json_encode(array_values(array_map(fn($v)=>$v['gueris'],    $byMonth)));
 $jsonMonthL     = json_encode(array_keys($byMonth));
 $jsonDistL      = json_encode(array_keys($top10Districts));
@@ -670,6 +684,14 @@ code {
         </div>
     </div>
 
+    <!-- DÉCÈS PAR SEXE -->
+    <div class="mcard" style="margin-bottom:16px;">
+        <div class="mcard-title"><i class="bi bi-heart-pulse"></i> Décès par sexe — Hommes et femmes</div>
+        <div class="chart-wrap" style="height:220px;">
+            <canvas id="chartDecesSexe"></canvas>
+        </div>
+    </div>
+
     <!-- RÉPARTITION GÉOGRAPHIQUE -->
     <div class="sec-grid g12" style="margin-bottom:16px;">
         <div class="mcard">
@@ -1004,6 +1026,8 @@ const DATA = {
     cas:       <?= $jsonMonth ?>,
     confirmes: <?= $jsonMonthC ?>,
     deces:     <?= $jsonMonthD ?>,
+    decesHommes: <?= $jsonMonthDH ?>,
+    decesFemmes: <?= $jsonMonthDF ?>,
     gueris:    <?= $jsonMonthG ?>,
   },
   district: { labels: <?= $jsonDistL ?>, total: <?= $jsonDistV ?>, H: <?= $jsonDistH ?>, F: <?= $jsonDistF ?> },
@@ -1091,6 +1115,26 @@ function toggleEpiView(mode) {
   buildEpiChart(mode);
 }
 buildEpiChart('mois');
+
+/* ── Décès par sexe ────────────────────────────────────────────────────── */
+new Chart(document.getElementById('chartDecesSexe'), {
+  type: 'bar',
+  data: {
+    labels: DATA.month.labels,
+    datasets: [
+      { label: 'Décès hommes', data: DATA.month.decesHommes, backgroundColor: C.blue, barPercentage: .7 },
+      { label: 'Décès femmes', data: DATA.month.decesFemmes, backgroundColor: C.orange, barPercentage: .7 },
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: buildLegend().labels } },
+    scales: {
+      x: { ...buildDarkAxes().x, ticks: { ...buildDarkAxes().x.ticks, maxRotation: 40, font: { size: 9 } } },
+      y: { ...buildDarkAxes().y, ticks: { ...buildDarkAxes().y.ticks, precision: 0 } },
+    },
+  }
+});
 
 /* ── Top 10 Districts ───────────────────────────────────────────────────── */
 new Chart(document.getElementById('chartDistrict'), {
