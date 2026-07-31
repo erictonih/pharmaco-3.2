@@ -1,0 +1,1 @@
+<?= $this->extend('layouts/main') ?><?= $this->section('content') ?><div class="dv-content"><h1>Analyse Mpox</h1><div class="dv-alert dv-alert-info"><i class="bi bi-info-circle"></i>Ce module utilisera la même source Google Sheets et le même cache que le module historique lors de son raccordement.</div></div><?= $this->endSection() ?>

@@ -1,0 +1,1 @@
+<?= $this->extend('layouts/main') ?><?= $this->section('content') ?><div class="dv-content"><h1>Analyse épidémiologique</h1><p>Les scores par district sont exposés par <a href="<?= site_url('api/risques-medicaments') ?>">l’API de risque</a>.</p></div><?= $this->endSection() ?>
