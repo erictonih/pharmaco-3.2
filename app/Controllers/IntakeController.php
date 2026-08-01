@@ -4,9 +4,9 @@ use App\Models\ClientModel; use App\Models\MedicationModel;
 final class IntakeController extends BaseController {
  public function clientForm(){return view('intake/client');}
  public function storeClient(){
-  if (! $this->validate(['Nom'=>'required','Prenom'=>'required','age'=>'required|integer','genre'=>'required','type_client'=>'required','adresse'=>'required'])) return redirect()->back()->withInput()->with('error','Veuillez remplir tous les champs obligatoires.');
+  if (! $this->validate(['Nom'=>'required','Prenom'=>'required','age'=>'required|integer','genre'=>'required','type_client'=>'required','adresse'=>'required','region'=>'required','district'=>'required'])) return redirect()->back()->withInput()->with('error','Veuillez remplir tous les champs obligatoires.');
   $id=trim((string)$this->request->getPost('identifiant')) ?: date('dmyHi').random_int(100,999);
-  (new ClientModel())->insert(['Id'=>$id,'Nom'=>trim((string)$this->request->getPost('Nom')),'Prenom'=>trim((string)$this->request->getPost('Prenom')),'Age'=>(int)$this->request->getPost('age'),'Genre'=>$this->request->getPost('genre'),'Type'=>$this->request->getPost('type_client'),'Residence'=>trim((string)$this->request->getPost('adresse')),'District'=>trim((string)$this->request->getPost('district')),'date_de_sousmission'=>date('Y-m-d H:i:s')]);
+  (new ClientModel())->insert(['Id'=>$id,'Nom'=>trim((string)$this->request->getPost('Nom')),'Prenom'=>trim((string)$this->request->getPost('Prenom')),'Age'=>(int)$this->request->getPost('age'),'Genre'=>$this->request->getPost('genre'),'Type'=>$this->request->getPost('type_client'),'Residence'=>trim((string)$this->request->getPost('adresse')),'Region'=>trim((string)$this->request->getPost('region')),'District'=>trim((string)$this->request->getPost('district')),'date_de_sousmission'=>date('Y-m-d H:i:s')]);
   session()->set('last_client_id',$id); return redirect()->to('/saisie/medicaments')->with('success','Client enregistré avec succès.');
  }
  public function medicationForm(){ $client=(new ClientModel())->orderBy('date_de_sousmission','DESC')->first(); return view('intake/medications',['client'=>$client]); }
