@@ -8,10 +8,10 @@ if ($_SERVER["REQUEST_METHOD"] !== "POST") {
     exit();
 }
 
-$servername = 'sql209.infinityfree.com';
-$dbname     = 'if0_41511897_pharmacie';
-$db_user    = 'if0_41511897';
-$db_pass    = 'jR9A6jlS7c8f8r';
+$servername = '127.0.0.1';
+$dbname     = 'pharmacie';
+$db_user    = 'root';
+$db_pass    = '';
 
 $conn = new mysqli($servername, $db_user, $db_pass, $dbname);
 
@@ -32,7 +32,7 @@ if (empty($username) || empty($passwordSaisi)) {
 }
 
 // Requête : récupérer le mot de passe hashé
-$stmt = $conn->prepare("SELECT user_id, username, role, mdp FROM users WHERE username = ?");
+$stmt = $conn->prepare("SELECT user_id, username, mdp FROM utilisateurs WHERE username = ?");
 $stmt->bind_param('s', $username);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -44,12 +44,11 @@ if ($result->num_rows > 0) {
     $hashBase = $row['mdp'];
 
     // Vérification du mot de passe
-	echo password_hash("Rakotonirina24", PASSWORD_DEFAULT);
-    if (password_verify($passwordSaisi, $hashBase)) {
+    if (password_verify($passwordSaisi, $hashBase) || hash_equals($hashBase, $passwordSaisi)) {
 
         $_SESSION['user_id']   = $row['user_id'];
         $_SESSION['user_name'] = $row['username'];
-        $_SESSION['role']      = trim($row['role']);
+        $_SESSION['role']      = 'Agent DVSSER';
 
         header("Location: index.php");
         exit();
