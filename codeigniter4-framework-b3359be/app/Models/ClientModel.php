@@ -2,31 +2,24 @@
 
 namespace App\Models;
 
-use App\Libraries\PdoConnection;
-use PDO;
+use CodeIgniter\Model;
 
-final class ClientModel
+final class ClientModel extends Model
 {
-    public function create(array $client): void
+    protected $table = 'client';
+    protected $primaryKey = 'Id';
+    protected $returnType = 'array';
+    protected $useAutoIncrement = false;
+    protected $allowedFields = ['Id', 'Nom', 'Prenom', 'Age', 'Genre', 'Type', 'Residence', 'District', 'date_de_sousmission'];
+
+    public function createClient(array $client): bool
     {
-        $statement = PdoConnection::get()->prepare('INSERT INTO client (Id, Nom, Prenom, Age, Genre, Type, Residence, District, date_de_sousmission) VALUES (:Id, :Nom, :Prenom, :Age, :Genre, :Type, :Residence, :District, NOW())');
-        $statement->execute($client);
+        $client['date_de_sousmission'] = date('Y-m-d H:i:s');
+        return $this->insert($client) !== false;
     }
 
-    public function last(): ?array
+    public function findForMedication(int $id): ?array
     {
-        return PdoConnection::get()->query('SELECT Id, Nom, Prenom, date_de_sousmission FROM client ORDER BY date_de_sousmission DESC LIMIT 1')->fetch() ?: null;
-    }
-
-    public function find(int $id): ?array
-    {
-        $statement = PdoConnection::get()->prepare('SELECT Id, Nom, Prenom, date_de_sousmission FROM client WHERE Id = :id LIMIT 1');
-        $statement->execute(['id' => $id]);
-        return $statement->fetch() ?: null;
-    }
-
-    public function all(): array
-    {
-        return PdoConnection::get()->query('SELECT Id, Nom, Prenom, Age, Genre, Type, Residence, District, date_de_sousmission FROM client ORDER BY date_de_sousmission DESC')->fetchAll();
+        return $this->select('Id, Nom, Prenom, date_de_sousmission')->find($id) ?: null;
     }
 }

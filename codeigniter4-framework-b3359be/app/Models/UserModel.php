@@ -2,20 +2,29 @@
 
 namespace App\Models;
 
-use App\Libraries\PdoConnection;
+use CodeIgniter\Model;
 
-final class UserModel
+final class UserModel extends Model
 {
-    public function findByUsername(string $username): ?array
+    protected $table = 'utilisateurs';
+    protected $primaryKey = 'user_id';
+    protected $returnType = 'array';
+    protected $allowedFields = ['username', 'mdp', 'prenom', 'nom', 'email', 'role', 'statut', 'derniere_connexion'];
+
+    public function findActiveByUsername(string $username): ?array
     {
-        $statement = PdoConnection::get()->prepare('SELECT user_id, username, mdp, statut FROM utilisateurs WHERE username = :username LIMIT 1');
-        $statement->execute(['username' => $username]);
-        return $statement->fetch() ?: null;
+        return $this->select('user_id, username, mdp, statut, role')->where('username', $username)->where('statut', 'Actif')->first() ?: null;
     }
 
-    public function markConnected(int $id): void
+    public function verifyCredentials(string $username, string $password): ?array
     {
-        $statement = PdoConnection::get()->prepare('UPDATE utilisateurs SET derniere_connexion = NOW() WHERE user_id = :id');
-        $statement->execute(['id' => $id]);
+        $user = $this->findActiveByUsername($username);
+        if ($user === null || (! password_verify($password, $user['mdp']) && ! hash_equals($user['mdp'], $password))) return null;
+        return $user;
+    }
+
+    public function recordLogin(int $id): bool
+    {
+        return $this->update($id, ['derniere_connexion' => date('Y-m-d H:i:s')]);
     }
 }

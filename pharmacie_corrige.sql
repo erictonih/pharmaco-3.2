@@ -102,6 +102,12 @@ CREATE TABLE IF NOT EXISTS `utilisateurs` (
   `user_id`  int(11)      NOT NULL AUTO_INCREMENT,
   `username` varchar(255) NOT NULL UNIQUE,
   `mdp`      varchar(255) NOT NULL,
+  `prenom` varchar(100) NULL,
+  `nom` varchar(100) NULL,
+  `email` varchar(255) NULL,
+  `role` varchar(50) NOT NULL DEFAULT 'Saisie',
+  `statut` varchar(20) NOT NULL DEFAULT 'Actif',
+  `derniere_connexion` datetime NULL,
   PRIMARY KEY (`user_id`),
   KEY `idx_username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

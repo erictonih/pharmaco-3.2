@@ -1,0 +1,51 @@
+DEBUG - 2026-08-12 08:09:01 --> Session: Class initialized using 'CodeIgniter\Session\Handlers\FileHandler' driver.
+DEBUG - 2026-08-12 08:09:01 --> Session: Class initialized using 'CodeIgniter\Session\Handlers\FileHandler' driver.
+INFO - 2026-08-12 08:10:04 --> CSRF token verified.
+DEBUG - 2026-08-12 08:10:04 --> Session: Class initialized using 'CodeIgniter\Session\Handlers\FileHandler' driver.
+DEBUG - 2026-08-12 08:10:04 --> Session: Class initialized using 'CodeIgniter\Session\Handlers\FileHandler' driver.
+ERROR - 2026-08-12 08:17:30 --> Error connecting to the database: mysqli_sql_exception: Unknown error while connecting in /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Database/MySQLi/Connection.php:201
+Stack trace:
+#0 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Database/MySQLi/Connection.php(201): mysqli->real_connect()
+#1 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Database/BaseConnection.php(555): CodeIgniter\Database\MySQLi\Connection->connect()
+#2 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Database/BaseConnection.php(795): CodeIgniter\Database\BaseConnection->initialize()
+#3 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Database/BaseConnection.php(1706): CodeIgniter\Database\BaseConnection->query()
+#4 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Database/BaseConnection.php(1726): CodeIgniter\Database\BaseConnection->listTables()
+#5 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Database/MigrationRunner.php(821): CodeIgniter\Database\BaseConnection->tableExists()
+#6 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Database/MigrationRunner.php(173): CodeIgniter\Database\MigrationRunner->ensureTable()
+#7 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Commands/Database/Migrate.php(89): CodeIgniter\Database\MigrationRunner->latest()
+#8 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/CLI/SignalTrait.php(245): CodeIgniter\Commands\Database\Migrate::CodeIgniter\Commands\Database\{closure}()
+#9 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Commands/Database/Migrate.php(88): CodeIgniter\Commands\Database\Migrate->withSignalsBlocked()
+#10 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/CLI/Commands.php(74): CodeIgniter\Commands\Database\Migrate->run()
+#11 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/CLI/Console.php(47): CodeIgniter\CLI\Commands->run()
+#12 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Boot.php(442): CodeIgniter\CLI\Console->run()
+#13 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Boot.php(166): CodeIgniter\Boot::runCommand()
+#14 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/spark(87): CodeIgniter\Boot::bootSpark()
+#15 {main}
+
+Next CodeIgniter\Database\Exceptions\DatabaseException: Unknown error while connecting in /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Database/MySQLi/Connection.php:231
+Stack trace:
+#0 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Database/BaseConnection.php(555): CodeIgniter\Database\MySQLi\Connection->connect()
+#1 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Database/BaseConnection.php(795): CodeIgniter\Database\BaseConnection->initialize()
+#2 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Database/BaseConnection.php(1706): CodeIgniter\Database\BaseConnection->query()
+#3 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Database/BaseConnection.php(1726): CodeIgniter\Database\BaseConnection->listTables()
+#4 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Database/MigrationRunner.php(821): CodeIgniter\Database\BaseConnection->tableExists()
+#5 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Database/MigrationRunner.php(173): CodeIgniter\Database\MigrationRunner->ensureTable()
+#6 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Commands/Database/Migrate.php(89): CodeIgniter\Database\MigrationRunner->latest()
+#7 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/CLI/SignalTrait.php(245): CodeIgniter\Commands\Database\Migrate::CodeIgniter\Commands\Database\{closure}()
+#8 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Commands/Database/Migrate.php(88): CodeIgniter\Commands\Database\Migrate->withSignalsBlocked()
+#9 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/CLI/Commands.php(74): CodeIgniter\Commands\Database\Migrate->run()
+#10 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/CLI/Console.php(47): CodeIgniter\CLI\Commands->run()
+#11 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Boot.php(442): CodeIgniter\CLI\Console->run()
+#12 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/system/Boot.php(166): CodeIgniter\Boot::runCommand()
+#13 /home/herimino/S4/Stage/pharmaco-3.2/codeigniter4-framework-b3359be/spark(87): CodeIgniter\Boot::bootSpark()
+#14 {main}
+DEBUG - 2026-08-12 08:18:49 --> Session: Class initialized using 'CodeIgniter\Session\Handlers\FileHandler' driver.
+DEBUG - 2026-08-12 08:18:53 --> Session: Class initialized using 'CodeIgniter\Session\Handlers\FileHandler' driver.
+DEBUG - 2026-08-12 08:19:06 --> Session: Class initialized using 'CodeIgniter\Session\Handlers\FileHandler' driver.
+DEBUG - 2026-08-12 08:19:21 --> Session: Class initialized using 'CodeIgniter\Session\Handlers\FileHandler' driver.
+DEBUG - 2026-08-12 08:19:29 --> Session: Class initialized using 'CodeIgniter\Session\Handlers\FileHandler' driver.
+DEBUG - 2026-08-12 08:19:44 --> Session: Class initialized using 'CodeIgniter\Session\Handlers\FileHandler' driver.
+DEBUG - 2026-08-12 08:19:46 --> Session: Class initialized using 'CodeIgniter\Session\Handlers\FileHandler' driver.
+DEBUG - 2026-08-12 08:19:47 --> Session: Class initialized using 'CodeIgniter\Session\Handlers\FileHandler' driver.
+DEBUG - 2026-08-12 08:20:31 --> Session: Class initialized using 'CodeIgniter\Session\Handlers\FileHandler' driver.
+DEBUG - 2026-08-12 08:20:36 --> Session: Class initialized using 'CodeIgniter\Session\Handlers\FileHandler' driver.

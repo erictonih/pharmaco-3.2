@@ -2,24 +2,22 @@
 
 namespace App\Models;
 
-use App\Libraries\PdoConnection;
+use CodeIgniter\Model;
 
-final class RegionModel
+final class RegionModel extends Model
 {
-    public function all(): array
+    protected $table = 'region';
+    protected $primaryKey = 'id';
+    protected $returnType = 'array';
+    protected $allowedFields = ['nom'];
+
+    public function getRegions(): array
     {
-        return PdoConnection::get()
-            ->query('SELECT id, nom FROM region ORDER BY nom')
-            ->fetchAll();
+        return $this->select('id, nom')->orderBy('nom')->findAll();
     }
 
-    public function districts(int $regionId): array
+    public function getDistricts(int $regionId): array
     {
-        $statement = PdoConnection::get()->prepare(
-            'SELECT id, nom FROM district WHERE region_id = :region_id ORDER BY nom'
-        );
-        $statement->execute(['region_id' => $regionId]);
-
-        return $statement->fetchAll();
+        return $this->db->table('district')->select('id, nom')->where('region_id', $regionId)->orderBy('nom')->get()->getResultArray();
     }
 }

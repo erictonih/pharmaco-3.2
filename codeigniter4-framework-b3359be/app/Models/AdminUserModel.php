@@ -1,11 +1,46 @@
 <?php
+
 namespace App\Models;
-use App\Libraries\PdoConnection;
-final class AdminUserModel {
- public function stats(): array { $p=PdoConnection::get(); return ['total'=>(int)$p->query('SELECT COUNT(*) FROM utilisateurs')->fetchColumn(),'actifs'=>(int)$p->query("SELECT COUNT(*) FROM utilisateurs WHERE statut='Actif'")->fetchColumn(),'inactifs'=>(int)$p->query("SELECT COUNT(*) FROM utilisateurs WHERE statut='Inactif'")->fetchColumn()]; }
- public function list(string $search='', string $role=''): array { $q='SELECT user_id,username,prenom,nom,email,role,statut,derniere_connexion FROM utilisateurs WHERE 1=1';$v=[];if($search!==''){$q.=' AND (username LIKE :search_username OR nom LIKE :search_nom OR prenom LIKE :search_prenom OR email LIKE :search_email)';$term='%'.$search.'%';$v=['search_username'=>$term,'search_nom'=>$term,'search_prenom'=>$term,'search_email'=>$term];}if($role!==''){$q.=' AND role=:role';$v['role']=$role;}$q.=' ORDER BY user_id DESC';$s=PdoConnection::get()->prepare($q);$s->execute($v);return $s->fetchAll(); }
- public function create(array $v): void {$s=PdoConnection::get()->prepare('INSERT INTO utilisateurs (username,prenom,nom,email,role,statut,mdp) VALUES (:username,:prenom,:nom,:email,:role,:statut,:mdp)');$s->execute($v);}
- public function toggle(int $id): void {PdoConnection::get()->prepare("UPDATE utilisateurs SET statut=IF(statut='Actif','Inactif','Actif') WHERE user_id=:id")->execute(['id'=>$id]);}
- public function update(int $id,array $v): void {$s=PdoConnection::get()->prepare('UPDATE utilisateurs SET prenom=:prenom,nom=:nom,email=:email,role=:role WHERE user_id=:id');$v['id']=$id;$s->execute($v);}
- public function delete(int $id): void {PdoConnection::get()->prepare('DELETE FROM utilisateurs WHERE user_id=:id')->execute(['id'=>$id]);}
+
+use CodeIgniter\Model;
+
+final class AdminUserModel extends Model
+{
+    protected $table = 'utilisateurs';
+    protected $primaryKey = 'user_id';
+    protected $returnType = 'array';
+    protected $allowedFields = ['username', 'prenom', 'nom', 'email', 'role', 'statut', 'mdp', 'derniere_connexion'];
+
+    public function getUsersPageData(string $search = '', string $role = ''): array
+    {
+        return ['stats' => $this->getStats(), 'users' => $this->getUsers($search, $role), 'search' => $search, 'selectedRole' => $role];
+    }
+
+    public function getStats(): array
+    {
+        $users = $this->db->table($this->table);
+        return [
+            'total' => $users->countAllResults(),
+            'actifs' => $this->db->table($this->table)->where('statut', 'Actif')->countAllResults(),
+            'inactifs' => $this->db->table($this->table)->where('statut', 'Inactif')->countAllResults(),
+        ];
+    }
+
+    public function getUsers(string $search = '', string $role = ''): array
+    {
+        $builder = $this->select('user_id, username, prenom, nom, email, role, statut, derniere_connexion');
+        if ($search !== '') $builder->groupStart()->like('username', $search)->orLike('nom', $search)->orLike('prenom', $search)->orLike('email', $search)->groupEnd();
+        if ($role !== '') $builder->where('role', $role);
+        return $builder->orderBy('user_id', 'DESC')->findAll();
+    }
+
+    public function createUser(array $data): bool { return $this->insert($data) !== false; }
+    public function updateUser(int $id, array $data): bool { return $this->update($id, $data); }
+    public function deleteUser(int $id): bool { return $this->delete($id); }
+
+    public function toggleStatus(int $id): bool
+    {
+        $user = $this->find($id); if ($user === null) return false;
+        return $this->update($id, ['statut' => $user['statut'] === 'Actif' ? 'Inactif' : 'Actif']);
+    }
 }
