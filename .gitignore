@@ -1,0 +1,7 @@
+.env
+.env.*
+.vercel
+config/*.json
+cache/
+*.pem
+*.key
