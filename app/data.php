@@ -21,7 +21,7 @@ $sql = "SELECT
             m.id_client,
             m.Type        AS TypeMedicament,
             m.Nombres     AS Quantite,
-            DATE_FORMAT(m.Date, '%Y-%m') AS Mois
+            to_char(m.Date,'YYYY-MM') AS Mois
         FROM client c
         INNER JOIN medicament m ON c.Id = m.id_client
         ORDER BY m.Date DESC";

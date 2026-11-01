@@ -5,9 +5,8 @@
  * Toute la configuration vient des variables d'environnement (Vercel > Settings > Environment Variables).
  * AUCUN secret ne doit être écrit dans le code.
  *
- *   DB_HOST, DB_PORT (défaut 3306), DB_USER, DB_PASSWORD, DB_NAME
- *   DB_SSL=1            → connexion TLS (obligatoire chez la plupart des MySQL cloud)
- *   DB_SSL_CA_PEM       → (optionnel) certificat CA du fournisseur, contenu PEM
+ *   DATABASE_URL        → fournie automatiquement par l'intégration Neon de Vercel
+ *   (ou DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, DB_SSLMODE)
  *   GOOGLE_SA_JSON_B64  → compte de service Google (JSON encodé en base64)
  *   DHIS2_USER / DHIS2_PASSWORD (si utilisés)
  */
@@ -47,52 +46,141 @@ if (PHP_SAPI !== 'cli' && !headers_sent()) {
     }
 }
 
-// ── Connexion MySQL (mysqli, exceptions désactivées → on gère nous-mêmes) ─────
-function db(): mysqli {
-    static $conn = null;
-    if ($conn instanceof mysqli) { return $conn; }
+// ── Connexion PostgreSQL (Neon) ───────────────────────────────────────────────
+// Neon via Vercel injecte DATABASE_URL / POSTGRES_URL (…?sslmode=require). Sinon : DB_HOST, DB_NAME…
+// Couche de compatibilité : expose l'API mysqli utilisée par les pages (query/prepare/bind_param/
+// execute/get_result/fetch_assoc/num_rows/bind_result/fetch) au-dessus de PDO pgsql.
 
-    $host = env_get('DB_HOST');
-    $name = env_get('DB_NAME');
+// Colonnes à casse mixte héritées de MySQL : PostgreSQL les renvoie en minuscules.
+const PG_COLUMN_CASE = ['Id','Nom','Prenom','Age','Genre','Type','Residence','District','Nombres','Date'];
+
+function pg_case_map(string $sql): array {
+    $map = [];
+    foreach (PG_COLUMN_CASE as $c) { $map[strtolower($c)] = $c; }
+    if (preg_match_all('/\bAS\s+([A-Za-z_][A-Za-z0-9_]*)/i', $sql, $m)) {
+        foreach ($m[1] as $a) { $map[strtolower($a)] = $a; }   // alias : casse exacte de la requête
+    }
+    return $map;
+}
+
+class PgResult {
+    public int $num_rows = 0;
+    private array $rows;
+    private array $map;
+    private int $i = 0;
+    public function __construct(array $rows, array $map) { $this->rows = $rows; $this->map = $map; $this->num_rows = count($rows); }
+    private function fix(array $r): array {
+        $o = [];
+        foreach ($r as $k => $v) { $o[$this->map[$k] ?? $k] = $v; }
+        return $o;
+    }
+    public function fetch_assoc(): ?array { return isset($this->rows[$this->i]) ? $this->fix($this->rows[$this->i++]) : null; }
+    public function fetch_all(): array { $o = []; while (($r = $this->fetch_assoc()) !== null) { $o[] = $r; } return $o; }
+    public function close(): void {}
+}
+
+class PgStmt {
+    public string $error = '';
+    public int $num_rows = 0;
+    private PDOStatement $st;
+    private array $map;
+    private array $types = [];
+    private array $refs = [];
+    private array $rows = [];
+    private int $ri = 0;
+    private array $out = [];
+    public function __construct(PDOStatement $st, string $sql) { $this->st = $st; $this->map = pg_case_map($sql); }
+    public function bind_param(string $types, &...$vars): bool { $this->types = str_split($types); $this->refs = []; foreach ($vars as $k => &$v) { $this->refs[$k] = &$v; } return true; }
+    public function execute(): bool {
+        try {
+            foreach ($this->refs as $k => $v) {
+                $t = $this->types[$k] ?? 's';
+                $this->st->bindValue($k + 1, $v, $t === 'i' && $v !== null ? PDO::PARAM_INT : PDO::PARAM_STR);
+            }
+            $this->st->execute();
+            $this->rows = $this->st->columnCount() > 0 ? $this->st->fetchAll(PDO::FETCH_ASSOC) : [];
+            $this->num_rows = count($this->rows);
+            $this->ri = 0;
+            return true;
+        } catch (PDOException $e) {
+            $this->error = $e->getMessage();
+            error_log('[pharmaco][sql] ' . $e->getMessage());
+            return false;
+        }
+    }
+    public function get_result(): PgResult { return new PgResult($this->rows, $this->map); }
+    public function store_result(): bool { return true; }
+    public function bind_result(&...$vars): bool { $this->out = []; foreach ($vars as $k => &$v) { $this->out[$k] = &$v; } return true; }
+    public function fetch(): ?bool {
+        if (!isset($this->rows[$this->ri])) { return null; }
+        $vals = array_values($this->rows[$this->ri++]);
+        foreach ($this->out as $k => &$ref) { $ref = $vals[$k] ?? null; }
+        return true;
+    }
+    public function close(): bool { return true; }
+}
+
+class PgConn {
+    public ?string $connect_error = null;
+    public string $error = '';
+    private PDO $pdo;
+    public function __construct(PDO $pdo) { $this->pdo = $pdo; }
+    public function query(string $sql) {
+        try {
+            $st = $this->pdo->query($sql);
+            if ($st->columnCount() === 0) { return true; }
+            return new PgResult($st->fetchAll(PDO::FETCH_ASSOC), pg_case_map($sql));
+        } catch (PDOException $e) {
+            $this->error = $e->getMessage();
+            error_log('[pharmaco][sql] ' . $e->getMessage());
+            return false;
+        }
+    }
+    public function prepare(string $sql) {
+        try { return new PgStmt($this->pdo->prepare($sql), $sql); }
+        catch (PDOException $e) { $this->error = $e->getMessage(); error_log('[pharmaco][sql] ' . $e->getMessage()); return false; }
+    }
+    public function set_charset(string $c): bool { return true; }
+    public function close(): bool { return true; }
+}
+
+function db(): PgConn {
+    static $conn = null;
+    if ($conn instanceof PgConn) { return $conn; }
+
+    $url = env_get('DATABASE_URL') ?: env_get('POSTGRES_URL') ?: env_get('POSTGRES_URL_NON_POOLING');
+    $host = $port = $user = $pass = $name = null; $ssl = 'require';
+    if ($url) {
+        $u = parse_url($url);
+        $host = $u['host'] ?? null; $port = $u['port'] ?? 5432;
+        $user = isset($u['user']) ? rawurldecode($u['user']) : null;
+        $pass = isset($u['pass']) ? rawurldecode($u['pass']) : null;
+        $name = isset($u['path']) ? ltrim($u['path'], '/') : null;
+        parse_str($u['query'] ?? '', $q);
+        $ssl = $q['sslmode'] ?? 'require';
+    } else {
+        $host = env_get('DB_HOST'); $port = (int) env_get('DB_PORT', 5432);
+        $user = env_get('DB_USER'); $pass = env_get('DB_PASSWORD'); $name = env_get('DB_NAME');
+        $ssl  = env_get('DB_SSLMODE', 'require');
+    }
     if (!$host || !$name) {
-        error_log('[pharmaco] DB_HOST / DB_NAME non définis');
+        error_log('[pharmaco] base de données non configurée (DATABASE_URL)');
         http_response_code(500);
         exit('Service indisponible (configuration serveur).');
     }
-
-    mysqli_report(MYSQLI_REPORT_OFF);
-    $c = mysqli_init();
-    $c->options(MYSQLI_OPT_CONNECT_TIMEOUT, 8);
-    $flags = 0;
-
-    if (env_get('DB_SSL', '1') !== '0') {
-        $ca = null;
-        if ($pem = env_get('DB_SSL_CA_PEM')) {
-            $ca = sys_get_temp_dir() . '/db_ca_' . md5($pem) . '.pem';
-            if (!is_file($ca)) { file_put_contents($ca, str_replace('\n', "\n", $pem)); }
-        }
-        $c->ssl_set(null, null, $ca, null, null);
-        $flags |= MYSQLI_CLIENT_SSL;
-        if ($ca === null) { $flags |= MYSQLI_CLIENT_SSL_DONT_VERIFY_SERVER_CERT; }
-    }
-
-    $ok = @$c->real_connect(
-        $host,
-        env_get('DB_USER', ''),
-        env_get('DB_PASSWORD', ''),
-        $name,
-        (int) env_get('DB_PORT', 3306),
-        null,
-        $flags
-    );
-    if (!$ok) {
-        error_log('[pharmaco] connexion DB échouée : ' . $c->connect_error);
+    try {
+        $pdo = new PDO("pgsql:host=$host;port=$port;dbname=$name;sslmode=$ssl;connect_timeout=8", $user, $pass, [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_EMULATE_PREPARES   => true,    // compatible pooler Neon (pgbouncer, mode transaction)
+            PDO::ATTR_STRINGIFY_FETCHES  => false,
+        ]);
+        $pdo->exec("SET TIME ZONE 'Indian/Antananarivo'");
+    } catch (PDOException $e) {
+        error_log('[pharmaco] connexion DB échouée : ' . $e->getMessage());
         http_response_code(503);
         exit('Service indisponible (base de données).');
     }
-    $c->set_charset('utf8mb4');
-    $c->query("SET time_zone = '+03:00'");
-    return $conn = $c;
+    return $conn = new PgConn($pdo);
 }
 
 // ── Sessions stockées en base (le disque Vercel est éphémère et non partagé) ──
@@ -105,28 +193,24 @@ class DbSessionHandler implements SessionHandlerInterface {
         $st->bind_param('si', $id, $now);
         $st->execute();
         $st->bind_result($data);
-        $out = $st->fetch() ? (string) $data : '';
-        $st->close();
+        $out = $st->fetch() ? (string) base64_decode((string) $data) : '';
         return $out;
     }
     public function write(string $id, string $data): bool {
         $exp = time() + 8 * 3600;
-        $st = db()->prepare('REPLACE INTO app_sessions (id, data, expires_at) VALUES (?, ?, ?)');
-        $st->bind_param('ssi', $id, $data, $exp);
-        $ok = $st->execute();
-        $st->close();
-        return $ok;
+        $enc = base64_encode($data);
+        $st = db()->prepare('INSERT INTO app_sessions (id, data, expires_at) VALUES (?, ?, ?)
+                             ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, expires_at = EXCLUDED.expires_at');
+        $st->bind_param('ssi', $id, $enc, $exp);
+        return $st->execute();
     }
     public function destroy(string $id): bool {
         $st = db()->prepare('DELETE FROM app_sessions WHERE id = ?');
         $st->bind_param('s', $id);
-        $ok = $st->execute();
-        $st->close();
-        return $ok;
+        return $st->execute();
     }
     public function gc(int $max): int|false {
-        $now = time();
-        db()->query('DELETE FROM app_sessions WHERE expires_at < ' . $now);
+        db()->query('DELETE FROM app_sessions WHERE expires_at < ' . time());
         return 0;
     }
 }

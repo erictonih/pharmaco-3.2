@@ -49,7 +49,7 @@ $sql_analyse = "
     FROM medicament m
     INNER JOIN client c ON c.Id = m.id_client
     WHERE c.District != ''
-      AND m.Date != '0000-00-00 00:00:00'
+      AND m.Date IS NOT NULL
     GROUP BY c.District, m.Type
     ORDER BY c.District, Total DESC
 ";
@@ -65,12 +65,12 @@ if ($res) {
 $tendances = [];
 $sql_tendance = "
     SELECT c.District,
-           DATE_FORMAT(m.Date, '%Y-%m') AS Mois,
+           to_char(m.Date,'YYYY-MM') AS Mois,
            SUM(m.Nombres) AS Total
     FROM medicament m
     INNER JOIN client c ON c.Id = m.id_client
     WHERE c.District != ''
-      AND m.Date != '0000-00-00 00:00:00'
+      AND m.Date IS NOT NULL
     GROUP BY c.District, Mois
     ORDER BY c.District, Mois
 ";

@@ -1,75 +1,68 @@
 -- ================================================================
---  PHARMACO / DVSSER — Schéma MySQL 8 / MariaDB 10.5+  (utf8mb4)
---  À exécuter UNE fois sur la base MySQL cloud.
---  Aucun mot de passe en clair ici : créez le premier Super Admin
---  avec  php database/create_admin.php  (voir README).
+--  PHARMACO / DVSSER — Schéma PostgreSQL (Neon)
+--  Exécuter une fois. Idempotent (CREATE ... IF NOT EXISTS).
+--  Aucun mot de passe ici : créer le Super Admin avec database/create_admin.php
 -- ================================================================
-SET NAMES utf8mb4;
-SET time_zone = '+03:00';
 
-CREATE TABLE IF NOT EXISTS `client` (
-  `Id`                  bigint       NOT NULL,
-  `Nom`                 varchar(50)  NOT NULL,
-  `Prenom`              varchar(50)  NOT NULL,
-  `Age`                 int          DEFAULT NULL,
-  `Genre`               varchar(20)  NOT NULL DEFAULT '',
-  `Type`                varchar(30)  DEFAULT NULL,
-  `Residence`           varchar(100) DEFAULT NULL,
-  `District`            varchar(250) NOT NULL DEFAULT '',
-  `date_de_sousmission` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`Id`),
-  KEY `idx_type`     (`Type`),
-  KEY `idx_district` (`District`(50)),
-  KEY `idx_date`     (`date_de_sousmission`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Patients / clients saisis dans formulaire.php (action.php) — lus par index, analyse, visualisations, tdc, data.php
+CREATE TABLE IF NOT EXISTS client (
+  id                    bigint       PRIMARY KEY CHECK (id > 0),
+  nom                   varchar(50)  NOT NULL,
+  prenom                varchar(50)  NOT NULL,
+  age                   integer      CHECK (age IS NULL OR age BETWEEN 0 AND 130),
+  genre                 varchar(20)  NOT NULL DEFAULT '',
+  type                  varchar(30),                      -- Ambulatoire | Hospitalisé
+  residence             varchar(100),
+  district              varchar(250) NOT NULL DEFAULT '', -- clé de jointure carte/analyse épidémique
+  date_de_sousmission   timestamp    NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_client_type     ON client (type);
+CREATE INDEX IF NOT EXISTS idx_client_district ON client (district);
+CREATE INDEX IF NOT EXISTS idx_client_date     ON client (date_de_sousmission);
 
-CREATE TABLE IF NOT EXISTS `medicament` (
-  `id`        int         NOT NULL AUTO_INCREMENT,
-  `id_client` bigint      NOT NULL,
-  `Type`      varchar(50) NOT NULL,
-  `Nombres`   int         NOT NULL DEFAULT 0,
-  `Date`      datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_client` (`id_client`),
-  KEY `idx_type`   (`Type`),
-  KEY `idx_date`   (`Date`),
-  CONSTRAINT `fk_medicament_client` FOREIGN KEY (`id_client`) REFERENCES `client`(`Id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Achats de médicaments par client (medicament.php → traitement-medoc.php) — base du score de risque (medoc-risque.php)
+CREATE TABLE IF NOT EXISTS medicament (
+  id         integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  id_client  bigint      NOT NULL REFERENCES client(id) ON DELETE CASCADE,
+  type       varchar(50) NOT NULL
+             CHECK (type IN ('Antibiotique','Antipyrétique','Antalgique','Antidiarrhéique','VitamineC','Antihistaminique')),
+  nombres    integer     NOT NULL DEFAULT 0 CHECK (nombres >= 0),
+  date       timestamp   NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_medicament_client ON medicament (id_client);
+CREATE INDEX IF NOT EXISTS idx_medicament_type   ON medicament (type);
+CREATE INDEX IF NOT EXISTS idx_medicament_date   ON medicament (date);
 
--- Table lue/écrite par users.php et utilisateur.php (absente de l'ancien SQL : bug corrigé)
-CREATE TABLE IF NOT EXISTS `users` (
-  `user_id`           int          NOT NULL AUTO_INCREMENT,
-  `username`          varchar(100) NOT NULL,
-  `prenom`            varchar(100) NOT NULL DEFAULT '',
-  `nom`               varchar(100) NOT NULL DEFAULT '',
-  `email`             varchar(190) NOT NULL,
-  `role`              varchar(30)  NOT NULL DEFAULT 'Visiteur',
-  `mdp`               varchar(255) NOT NULL,            -- hash bcrypt/argon2 (password_hash)
-  `statut`            enum('Actif','Inactif') NOT NULL DEFAULT 'Actif',
-  `created_by`        int          DEFAULT NULL,
-  `created_at`        timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `derniere_connexion` datetime    DEFAULT NULL,
-  PRIMARY KEY (`user_id`),
-  UNIQUE KEY `uq_username` (`username`),
-  UNIQUE KEY `uq_email`    (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Comptes (Login.php → utilisateur.php, gestion dans users.php)
+CREATE TABLE IF NOT EXISTS users (
+  user_id             integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  username            varchar(100) NOT NULL UNIQUE,
+  prenom              varchar(100) NOT NULL DEFAULT '',
+  nom                 varchar(100) NOT NULL DEFAULT '',
+  email               varchar(190) NOT NULL UNIQUE,
+  role                varchar(30)  NOT NULL DEFAULT 'Visiteur'
+                      CHECK (role IN ('Super Admin','Saisie','Visiteur','Visualiseur','Analyste')),
+  mdp                 varchar(255) NOT NULL,                 -- hash password_hash()
+  statut              varchar(10)  NOT NULL DEFAULT 'Actif' CHECK (statut IN ('Actif','Inactif')),
+  created_by          integer REFERENCES users(user_id) ON DELETE SET NULL,
+  created_at          timestamp NOT NULL DEFAULT now(),
+  derniere_connexion  timestamp
+);
 
--- Sessions PHP (Vercel est sans état : pas de disque partagé)
-CREATE TABLE IF NOT EXISTS `app_sessions` (
-  `id`         varchar(128)    NOT NULL,
-  `data`       mediumblob      NOT NULL,
-  `expires_at` int unsigned    NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_exp` (`expires_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- Sessions PHP (Vercel est sans état)
+CREATE TABLE IF NOT EXISTS app_sessions (
+  id          varchar(128) PRIMARY KEY,
+  data        text    NOT NULL,
+  expires_at  integer NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sessions_exp ON app_sessions (expires_at);
 
 -- Anti brute-force de la connexion
-CREATE TABLE IF NOT EXISTS `login_attempts` (
-  `id`       int          NOT NULL AUTO_INCREMENT,
-  `username` varchar(255) NOT NULL,
-  `ip`       varchar(45)  NOT NULL,
-  `ts`       int unsigned NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_user_ts` (`username`, `ts`),
-  KEY `idx_ip_ts`   (`ip`, `ts`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS login_attempts (
+  id        integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  username  varchar(255) NOT NULL,
+  ip        varchar(45)  NOT NULL,
+  ts        integer      NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_attempts_user ON login_attempts (username, ts);
+CREATE INDEX IF NOT EXISTS idx_attempts_ip   ON login_attempts (ip, ts);

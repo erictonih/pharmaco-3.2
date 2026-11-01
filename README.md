@@ -1,6 +1,6 @@
 # pharmaco-3.2 (DVSSER) — déploiement Vercel
 
-PHP 8.x + MySQL, exécuté sur Vercel via `vercel-php@0.9.0`.
+PHP 8.x + PostgreSQL (Neon), exécuté sur Vercel via `vercel-php@0.9.0`.
 
 ## Structure
 - `app/` scripts PHP (non servis directement) · `api/index.php` routeur unique (liste blanche)
@@ -11,14 +11,14 @@ PHP 8.x + MySQL, exécuté sur Vercel via `vercel-php@0.9.0`.
 - Mot de passe MySQL InfinityFree et mots de passe applicatifs de l'ancien fichier SQL (`admin`, `Test`) : à changer/considérer comme compromis.
 - Ils restent visibles dans l'historique Git : si le dépôt est public, rendez-le privé ou purgez l'historique (`git filter-repo`).
 
-## 2. Base de données MySQL cloud
-1. Créez une base MySQL chez un fournisseur cloud (offre gratuite à vérifier : Aiven, TiDB Cloud, …).
-2. Importez `database/schema.sql`, puis vos vraies données exportées depuis phpMyAdmin (InfinityFree). `database/seed_demo_data.sql` est facultatif (données de test).
-3. Créez le Super Admin : `DB_HOST=… DB_USER=… DB_PASSWORD=… DB_NAME=… php database/create_admin.php admin vous@exemple.mg`
+## 2. Base de données : Neon (PostgreSQL) via Vercel
+1. Vercel > votre projet > **Storage** > *Create Database* > **Neon** (offre gratuite) > connecter au projet (Production + Preview). Vercel injecte `DATABASE_URL` automatiquement.
+2. Dans la console SQL de Neon, exécutez `database/schema.sql` (5 tables : client, medicament, users, app_sessions, login_attempts), puis `database/seed_demo_data.sql` si vous voulez des données de test.
+3. Créez le Super Admin : `DATABASE_URL='postgresql://…' php database/create_admin.php admin vous@exemple.mg`
+4. Migration des données existantes (InfinityFree/MySQL) : exportez `client` et `medicament` en CSV depuis phpMyAdmin, puis importez-les dans Neon (colonnes en minuscules : id, nom, prenom, age, genre, type, residence, district, date_de_sousmission / id_client, type, nombres, date). Ne migrez pas les mots de passe : recréez les comptes.
 
 ## 3. Vercel
-Import du dépôt (Framework : *Other*, pas de build). Variables d'environnement (Production + Preview) : voir `.env.example`
-(`DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DB_NAME, DB_SSL, GOOGLE_SA_JSON_B64`).
+Import du dépôt (Framework : *Other*, pas de build). Variables : `DATABASE_URL` (auto via Neon) et `GOOGLE_SA_JSON_B64` (pages Mpox, nouvelle clé).
 
 ## Sécurité mise en place
 Aucun secret dans le code · requêtes préparées · CSRF sur tous les POST · rôles vérifiés côté serveur sur chaque page/endpoint ·

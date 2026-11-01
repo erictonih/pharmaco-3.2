@@ -36,7 +36,7 @@ if ($res2) while ($row = $res2->fetch_assoc()) {
 
 // 3. Médicaments par mois
 $all_months=[]; $all_types=[]; $data_mois=[];
-$res3 = $conn->query("SELECT DATE_FORMAT(Date,'%Y-%m') AS mois, Type, SUM(Nombres) AS total FROM medicament WHERE Date != '0000-00-00 00:00:00' GROUP BY mois, Type ORDER BY mois, Type");
+$res3 = $conn->query("SELECT to_char(Date,'YYYY-MM') AS mois, Type, SUM(Nombres) AS total FROM medicament WHERE Date IS NOT NULL GROUP BY mois, Type ORDER BY mois, Type");
 if ($res3) while ($row = $res3->fetch_assoc()) {
     $m = $row['mois'];
     $t = str_replace($fix,$rep,$row['Type']);

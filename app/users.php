@@ -134,25 +134,24 @@ $filter_role = trim(isset($_GET['role_filter']) ? $_GET['role_filter'] : '');
 if (!$access_denied) {
     $rs = $conn->query(
         "SELECT COUNT(*) AS total,
-                SUM(statut='Actif')    AS actifs,
-                SUM(statut='Inactif')  AS inactifs
+                COUNT(*) FILTER (WHERE statut='Actif')    AS actifs,
+                COUNT(*) FILTER (WHERE statut='Inactif')  AS inactifs
          FROM users"
     );
     if ($rs) { $stats = $rs->fetch_assoc(); }
 
     // Verifier si derniere_connexion existe
-    $dc_check = $conn->query("SHOW COLUMNS FROM users LIKE 'derniere_connexion'");
-    $has_dc   = ($dc_check && $dc_check->num_rows > 0);
+    $has_dc   = true;  // colonne présente dans le schéma
 
     $sql    = "SELECT user_id, prenom, nom, email, role, statut";
     if ($has_dc) $sql .= ", derniere_connexion";
-    $sql .= " FROM users WHERE 1";
+    $sql .= " FROM users WHERE TRUE";
 
     $params = array();
     $types  = '';
     if ($search !== '') {
         $s      = "%$search%";
-        $sql   .= " AND (username LIKE ? OR prenom LIKE ? OR nom LIKE ? OR email LIKE ?)";
+        $sql   .= " AND (username ILIKE ? OR prenom ILIKE ? OR nom ILIKE ? OR email ILIKE ?)";
         $params = array($s, $s, $s, $s);
         $types  = 'ssss';
     }

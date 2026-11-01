@@ -26,7 +26,7 @@ if (!$types) {
 }
 
 $inserted = 0;
-$st = $conn->prepare('INSERT INTO medicament (Type, Nombres, id_client, `Date`) VALUES (?, ?, ?, ?)');
+$st = $conn->prepare('INSERT INTO medicament (Type, Nombres, id_client, Date) VALUES (?, ?, ?, ?)');
 foreach ($types as $type) {
     $nombre = max(0, min(100000, (int)($_POST['autre_question_' . $type] ?? 0)));
     $st->bind_param('siis', $type, $nombre, $clientId, $date);

@@ -1,6 +1,5 @@
--- Données de démonstration (facultatif). Contient des données de test, pas de comptes.
-SET NAMES utf8mb4;
-INSERT IGNORE INTO `client` (`Id`,`Nom`,`Prenom`,`Age`,`Genre`,`Type`,`Residence`,`District`,`date_de_sousmission`) VALUES
+-- Données de démonstration (facultatif, à exécuter UNE seule fois après schema.sql).
+INSERT INTO client (id,nom,prenom,age,genre,type,residence,district,date_de_sousmission) VALUES
 (21,        'Eric',          'Tonih',          21, 'Masculin',  'Ambulatoire', 'Lot II F 3 NYV Andraisoro', 'Ankazobe',     '2024-02-02 09:34:49'),
 (12,        'jkg',           'gfgh',           12, 'Feminin',   'Ambulatoire', 'hfhgfh',                    'Arivonimamo',  '2023-09-11 08:46:59'),
 (1200,      'Rakotonirina',  'Ravo Eric',       35, 'Masculin', 'Ambulatoire', 'Ankerana',                  'Andramasina',  '2024-11-15 09:35:21'),
@@ -12,9 +11,9 @@ INSERT IGNORE INTO `client` (`Id`,`Nom`,`Prenom`,`Age`,`Genre`,`Type`,`Residence
 (110923001, 'Rasoa',         'Zanany',          32, 'Feminin',  'Hospitalisé', 'Ampasika',                  'Arivonimamo',  '2023-09-11 12:02:53'),
 (110923002, 'Rabenja',       '---',             12, 'Masculin', 'Ambulatoire', 'da',                        'Arivonimamo',  '2023-09-11 12:14:50'),
 (201124001, 'Sarobidy',      'Rh',              15, 'Feminin',  'Hospitalisé', 'Mahamasina',                'Andramasina',  '2024-11-20 11:35:57'),
-(1240350001,'RAKOTOBE',      'Sabrina Murielle', 25,'Feminin',  'Ambulatoire', 'Lot VV 23 SS',              'Sambava',      '2025-05-12 02:53:45');
+(1240350001,'RAKOTOBE',      'Sabrina Murielle', 25,'Feminin',  'Ambulatoire', 'Lot VV 23 SS',              'Sambava',      '2025-05-12 02:53:45') ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO `medicament` (`id_client`,`Type`,`Nombres`,`Date`) VALUES
+INSERT INTO medicament (id_client,Type,Nombres,Date) VALUES
 (110923001, 'Antalgique',      3,  '2023-09-11 12:02:53'),
 (110923001, 'Antibiotique',    1,  '2023-09-11 12:02:53'),
 (110923002, 'Antibiotique',   112, '2023-09-11 12:14:50'),

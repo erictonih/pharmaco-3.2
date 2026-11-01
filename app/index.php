@@ -6,6 +6,11 @@ if (!isset($_SESSION["user_id"])) {
     exit();
 }
 
+// Districts en alerte (même calcul que analyse.php)
+$alertes = [];
+include_once __DIR__ . '/medoc-risque.php';
+$nb_alertes = count(array_filter($alertes ?? [], fn($a) => ($a['niveau'] ?? 0) >= 3));
+
 // Stats rapides depuis la BDD
 $conn = db();
 $total_meds = $total_clients = $total_types = $total_mois = 0;
@@ -20,7 +25,7 @@ if (!$conn->connect_error) {
     $r = $conn->query("SELECT COUNT(DISTINCT Type) AS t FROM medicament WHERE id_client IS NOT NULL");
     if ($r) { $row=$r->fetch_assoc(); $total_types = (int)($row['t'] ?? 0); }
 
-    $r = $conn->query("SELECT COUNT(DISTINCT DATE_FORMAT(Date,'%Y-%m')) AS t FROM medicament WHERE Date != '0000-00-00 00:00:00'");
+    $r = $conn->query("SELECT COUNT(DISTINCT to_char(Date,'YYYY-MM')) AS t FROM medicament WHERE Date IS NOT NULL");
     if ($r) { $row=$r->fetch_assoc(); $total_mois = (int)($row['t'] ?? 0); }
 
     $conn->close();
