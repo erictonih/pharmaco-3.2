@@ -1,0 +1,18 @@
+{
+ "parsed_total": 168,
+ "status": {
+  "confirmed": 65,
+  "suspect": 53,
+  "probable": 35,
+  "negative": 15
+ },
+ "deaths": 4,
+ "hospitalised": 16,
+ "last": "2026-03-31",
+ "first": "2025-10-29",
+ "cur7": 5,
+ "prev7": 4,
+ "mahajanga_recent": 9,
+ "bad_rows": 1,
+ "districts": 8
+}

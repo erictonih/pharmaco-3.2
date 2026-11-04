@@ -1,213 +1,74 @@
 <?php
-require_once __DIR__ . '/db.php';
-require_once __DIR__ . '/auth_check.php';
-if (!isset($_SESSION["user_id"])) {
-    header("Location: Login.php");
-    exit();
-}
+require __DIR__ . '/../src/bootstrap.php';
+use Pharmaco\Auth\Auth;
+use Pharmaco\Services\{ServiceFactory, EpiAnalyticsService, OutbreakAlertService};
+Auth::requireLogin();
 
-// Districts en alerte (même calcul que analyse.php)
-$alertes = [];
-include_once __DIR__ . '/medoc-risque.php';
-$nb_alertes = count(array_filter($alertes ?? [], fn($a) => ($a['niveau'] ?? 0) >= 3));
+$ctx = ServiceFactory::context($_GET);
+$page_title = 'Tableau de bord'; $active_page = 'index';
+include __DIR__ . '/_layout.php';
 
-// Stats rapides depuis la BDD
-$conn = db();
-$total_meds = $total_clients = $total_types = $total_mois = 0;
-if (!$conn->connect_error) {
-    $conn->set_charset('utf8mb4');
-    $r = $conn->query("SELECT SUM(Nombres) AS t FROM medicament WHERE id_client IS NOT NULL");
-    if ($r) { $row=$r->fetch_assoc(); $total_meds = (int)($row['t'] ?? 0); }
-
-    $r = $conn->query("SELECT COUNT(*) AS t FROM client");
-    if ($r) { $row=$r->fetch_assoc(); $total_clients = (int)($row['t'] ?? 0); }
-
-    $r = $conn->query("SELECT COUNT(DISTINCT Type) AS t FROM medicament WHERE id_client IS NOT NULL");
-    if ($r) { $row=$r->fetch_assoc(); $total_types = (int)($row['t'] ?? 0); }
-
-    $r = $conn->query("SELECT COUNT(DISTINCT to_char(Date,'YYYY-MM')) AS t FROM medicament WHERE Date IS NOT NULL");
-    if ($r) { $row=$r->fetch_assoc(); $total_mois = (int)($row['t'] ?? 0); }
-
-    $conn->close();
-}
-
-$page_title  = 'Accueil';
-$active_page = 'index';
-$breadcrumb  = [];
-include 'sidebar.php';
+if ($ctx['ds']):
+    $epi = new EpiAnalyticsService($ctx['ds']);
+    $ov = $epi->overview(); $ts = $epi->timeSeries(); $geo = $epi->geography();
+    $al = (new OutbreakAlertService($ctx['full']))->districtAlerts();   // les alertes se calculent toujours sur l'ensemble des données
+    $top = array_slice($geo['districts_28d'], 0, 10, true);
+    $t = $ov['trend'];
 ?>
+<div class="dv-page-header"><h1><i class="bi bi-virus" style="color:var(--accent)"></i> Situation Mpox — Madagascar</h1>
+  <p class="muted">Données de notification du <?= h($ov['first_date'] ?? '—') ?> au <?= h($ov['last_date'] ?? '—') ?> · analyse calculée en direct depuis le Google Sheet</p></div>
 
-    <style>
-    .welcome-banner {
-        background: linear-gradient(135deg, var(--accent) 0%, #0556a4 100%);
-        border-radius: 16px;
-        padding: 32px 36px;
-        color: #fff;
-        position: relative;
-        overflow: hidden;
-        margin-bottom: 28px;
-        box-shadow: 0 8px 32px rgba(10,108,188,0.25);
-    }
-    .welcome-banner::before {
-        content:''; position:absolute; top:-40px; right:-40px;
-        width:200px; height:200px; border-radius:50%;
-        background:rgba(255,255,255,0.07);
-    }
-    .welcome-banner::after {
-        content:''; position:absolute; bottom:-50px; right:60px;
-        width:140px; height:140px; border-radius:50%;
-        background:rgba(255,255,255,0.05);
-    }
-    .welcome-banner h2 {
-        font-family:'Syne',sans-serif; font-size:1.5rem; font-weight:800; margin-bottom:6px;
-    }
-    .welcome-banner p { font-size:0.85rem; opacity:.85; max-width:420px; line-height:1.5; }
-    .wb-icon { position:absolute; right:36px; top:50%; transform:translateY(-50%);
-               font-size:5rem; opacity:0.12; }
+<?php if ($al['summary']['critical'] + $al['summary']['high'] > 0): ?>
+<div class="dv-alert dv-alert-warning"><i class="bi bi-exclamation-triangle-fill"></i>
+  <b><?= $al['summary']['critical'] ?> foyer(s) critique(s), <?= $al['summary']['high'] ?> élevé(s)</b> sur les <?= OutbreakAlertService::RECENT_DAYS ?> derniers jours —
+  <?= h(implode(', ', array_map(fn($a) => $a['district'], array_slice(array_filter($al['alerts'], fn($a) => $a['level'] >= 2), 0, 4)))) ?>.
+  <a href="alertes.php">Voir les alertes</a></div>
+<?php endif; ?>
 
-    .action-grid {
-        display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:18px; margin-bottom:28px;
-    }
-    .action-card {
-        background:var(--bg-card); border:1px solid var(--border); border-radius:14px;
-        padding:24px; display:flex; flex-direction:column; gap:14px;
-        text-decoration:none; color:inherit; cursor:pointer;
-        transition:box-shadow 0.25s, transform 0.25s, border-color 0.25s;
-        position:relative; overflow:hidden;
-    }
-    .action-card::before {
-        content:''; position:absolute; top:0; left:0; width:4px; height:100%;
-        background:var(--accent); opacity:0; transition:opacity 0.25s;
-    }
-    .action-card:hover { box-shadow:var(--shadow-hover); transform:translateY(-3px); border-color:var(--accent); }
-    .action-card:hover::before { opacity:1; }
-    .action-card.green::before { background:var(--accent2); }
-    .action-card.green:hover { border-color:var(--accent2); }
+<div class="grid g4 dv-stats-grid" style="margin-bottom:16px">
+  <div class="dv-stat"><div class="dv-stat-label">Cas notifiés</div><div class="dv-stat-value"><?= fr($ov['total']) ?></div><div class="dv-stat-sub"><?= fr($ov['districts']) ?> districts · <?= fr($ov['regions']) ?> régions</div></div>
+  <div class="dv-stat"><div class="dv-stat-label">Cas confirmés</div><div class="dv-stat-value" style="color:#e53e3e"><?= fr($ov['status']['confirmed']) ?></div><div class="dv-stat-sub">positivité <?= fr($ov['positivity'], 1) ?> %</div></div>
+  <div class="dv-stat"><div class="dv-stat-label">Décès</div><div class="dv-stat-value"><?= fr($ov['deaths']) ?></div><div class="dv-stat-sub">létalité (confirmés) <?= fr($ov['cfr_confirmed'], 1) ?> %</div></div>
+  <div class="dv-stat"><div class="dv-stat-label">Tendance 7 jours</div><div class="dv-stat-value"><?= $t ? fr($t['current_7d']) : '—' ?></div>
+    <div class="dv-stat-sub"><?= $t ? ('vs ' . fr($t['previous_7d']) . ' la semaine d\'avant' . ($t['change_pct'] !== null ? ' (' . ($t['change_pct'] > 0 ? '+' : '') . fr($t['change_pct']) . ' %)' : '')) : '' ?></div></div>
+  <div class="dv-stat"><div class="dv-stat-label">Hospitalisés</div><div class="dv-stat-value"><?= fr($ov['hospitalised']) ?></div><div class="dv-stat-sub"><?= fr($ov['hospitalisation_rate'], 1) ?> % des cas · <?= fr($ov['icu']) ?> en soins intensifs</div></div>
+  <div class="dv-stat"><div class="dv-stat-label">Prélèvements</div><div class="dv-stat-value"><?= fr($ov['sampling_rate'], 1) ?> %</div><div class="dv-stat-sub"><?= fr($ov['sampled']) ?> cas prélevés</div></div>
+  <div class="dv-stat"><div class="dv-stat-label">Âge médian</div><div class="dv-stat-value"><?= fr($ov['age_median'], 0) ?></div><div class="dv-stat-sub">moyenne <?= fr($ov['age_mean'], 1) ?> ans</div></div>
+  <div class="dv-stat"><div class="dv-stat-label">Suspects / probables</div><div class="dv-stat-value"><?= fr($ov['status']['suspect'] + $ov['status']['probable']) ?></div><div class="dv-stat-sub"><?= fr($ov['status']['negative']) ?> négatifs</div></div>
+</div>
 
-    .ac-icon {
-        width:48px; height:48px; border-radius:12px;
-        background:var(--accent-soft); color:var(--accent);
-        display:flex; align-items:center; justify-content:center; font-size:1.4rem;
-    }
-    .action-card.green .ac-icon { background:var(--accent2-soft); color:var(--accent2); }
+<div class="dv-card" style="margin-bottom:16px"><div class="dv-card-header"><i class="bi bi-graph-up"></i> Courbe épidémique hebdomadaire (semaines ISO)</div>
+  <div class="chart-box tall"><canvas id="cEpi"></canvas></div></div>
 
-    .ac-title { font-family:'Syne',sans-serif; font-size:0.95rem; font-weight:700; color:var(--text-primary); }
-    .ac-desc  { font-size:0.8rem; color:var(--text-secondary); line-height:1.4; }
+<div class="grid g2" style="margin-bottom:16px">
+  <div class="dv-card"><div class="dv-card-header"><i class="bi bi-geo-alt"></i> Districts les plus touchés (28 derniers jours)</div><div class="chart-box"><canvas id="cTop"></canvas></div></div>
+  <div class="dv-card"><div class="dv-card-header"><i class="bi bi-pie-chart"></i> Classification des cas</div><div class="chart-box"><canvas id="cStatus"></canvas></div></div>
+</div>
 
-    .ac-arrow {
-        margin-top:auto; align-self:flex-end;
-        width:30px; height:30px; border-radius:8px;
-        background:var(--accent-soft); color:var(--accent);
-        display:flex; align-items:center; justify-content:center;
-        font-size:0.9rem; transition:background 0.2s, transform 0.2s;
-    }
-    .action-card:hover .ac-arrow { background:var(--accent); color:#fff; transform:translateX(3px); }
-    .action-card.green .ac-arrow { background:var(--accent2-soft); color:var(--accent2); }
-    .action-card.green:hover .ac-arrow { background:var(--accent2); color:#fff; }
-    </style>
+<?php if ($al['alerts']): ?>
+<div class="dv-card"><div class="dv-card-header"><i class="bi bi-exclamation-triangle"></i> Alertes en cours (14 jours jusqu'au <?= h($al['reference_date']) ?>)</div>
+  <div class="dv-table-wrap"><table class="dv-table"><thead><tr><th>Niveau</th><th>District</th><th>Région</th><th class="num">Cas récents</th><th class="num">Attendus</th><th class="num">Décès</th></tr></thead><tbody>
+  <?php foreach (array_slice($al['alerts'], 0, 5) as $a): ?>
+    <tr><td><span class="lvl lvl<?= $a['level'] ?>"><?= ['', 'Surveillance', 'Élevé', 'Critique'][$a['level']] ?></span><?= $a['is_new'] ? ' <span class="dv-badge dv-badge-primary">nouveau</span>' : '' ?></td>
+    <td><?= h($a['district']) ?></td><td><?= h($a['region']) ?></td><td class="num"><?= $a['recent'] ?></td><td class="num"><?= fr($a['expected'], 1) ?></td><td class="num"><?= $a['recent_deaths'] ?></td></tr>
+  <?php endforeach; ?></tbody></table></div></div>
+<?php endif; ?>
 
-    <div class="dv-content dv-animate">
-
-        <!-- Banner -->
-        <div class="welcome-banner">
-            <h2>Bienvenue sur la plateforme DVSSER</h2>
-            <p>Direction de la Veille Sanitaire, de la Surveillance Épidémiologique et Riposte — Ministère de la Santé Publique de Madagascar</p>
-            <i class="bi bi-shield-plus wb-icon"></i>
-        </div>
-	 <?php if (!empty($alertes_preview)): ?>
-    <div class="epi-alert dv-animate dv-animate-d1">
-        <div class="epi-alert-title">
-            <i class="bi bi-exclamation-triangle-fill"></i>
-            Signal épidémique détecté — Districts actifs (6 derniers mois)
-        </div>
-        <div>
-            <?php foreach ($alertes_preview as $a): ?>
-            <span class="epi-district">
-                <i class="bi bi-geo-alt-fill"></i>
-                <?php echo htmlspecialchars($a['District']); ?>
-                <strong>(<?php echo number_format((int)$a['total']); ?> unités)</strong>
-            </span>
-            <?php endforeach; ?>
-            <a href="analyse.php" style="font-size:0.78rem;color:var(--accent);margin-left:8px;font-weight:600;">
-                Voir l'analyse complète →
-            </a>
-        </div>
-    </div>
-    <?php endif; ?>
-        <!-- Stats -->
-        <p class="dv-section-title dv-animate dv-animate-d1">Vue d'ensemble</p>
-        <div class="dv-stats-grid dv-animate dv-animate-d1">
-            <div class="dv-stat primary">
-                <div class="dv-stat-label"> <img src="medoc.png" alt="medoco icone" style = "width: 24px; height: 24px;"> Médicaments</div>
-                <div class="dv-stat-sub">unités dans la base</div>
-            </div>
-            <div class="dv-stat success">
-                <div class="dv-stat-label"> <img src="client.png" alt="client icone"style = "width: 24px; height: 24px;"> Clients</div>
-                <div class="dv-stat-sub">enregistrés</div>
-            </div>
-            <div class="dv-stat info">
-                <div class="dv-stat-label"><img src="type.png" alt="client icone"style = "width: 24px; height: 24px;"> Type de médicaments</div>
-                <div class="dv-stat-sub">catégories médicaments</div>
-            </div>
-            <div class="dv-stat warning">
-                <div class="dv-stat-label"><img src="agenda.png" alt="agenda icone"style = "width: 24px; height: 24px;">Période </div>
-                <div class="dv-stat-sub">périodes couvertes</div>
-            </div>
-            <div class="dv-stat" style="border-left:3px solid #e53e3e;">
-            <div class="dv-stat-label">Districts en alerte</div>
-            <div class="dv-stat-value" style="color:#e53e3e;"><?php echo $nb_alertes ?: '—'; ?></div>
-            <div class="dv-stat-sub">signal récent</div>
-        </div>
-        </div>
-
-        <!-- Accès rapide -->
-        <p class="dv-section-title dv-animate dv-animate-d2">Accès rapide</p>
-        <div class="action-grid dv-animate dv-animate-d2">
-
-            <a href="formulaire.php" class="action-card">
-                <div class="ac-icon"><i class="bi bi-pencil-square"></i></div>
-                <div>
-                    <div class="ac-title">Saisie de données</div>
-                    <div class="ac-desc">Enregistrer un nouveau client et ses médicaments.</div>
-                </div>
-                <div class="ac-arrow"><i class="bi bi-arrow-right"></i></div>
-            </a>
-
-            <a href="visualisation_base.php" class="action-card green">
-                <div class="ac-icon"><i class="bi bi-bar-chart-line"></i></div>
-                <div>
-                    <div class="ac-title">Visualisation graphique</div>
-                    <div class="ac-desc">Graphiques des médicaments, clients et âges.</div>
-                </div>
-                <div class="ac-arrow"><i class="bi bi-arrow-right"></i></div>
-            </a>
-			 <a href="analyse.php" class="action-card red">
-            <div class="ac-icon"><i class="bi bi-activity"></i></div>
-            <div><div class="ac-title">Analyse épidémiologique</div>
-                 <div class="ac-desc">Carte de risque, alertes et prédictions par district.</div></div>
-            <div class="ac-arrow"><i class="bi bi-arrow-right"></i></div>
-        </a>
-
-            <a href="visualisation_de_donnee.php" class="action-card">
-                <div class="ac-icon"><i class="bi bi-speedometer2"></i></div>
-                <div>
-                    <div class="ac-title">Tableau de Bord</div>
-                    <div class="ac-desc">Tableaux de synthèse avec recherche et tri.</div>
-                </div>
-                <div class="ac-arrow"><i class="bi bi-arrow-right"></i></div>
-            </a>
-
-            <a href="tdc.php" class="action-card green">
-                <div class="ac-icon"><i class="bi bi-table"></i></div>
-                <div>
-                    <div class="ac-title">Tableau Croisé Dynamique</div>
-                    <div class="ac-desc">Analyse pivot interactive des données.</div>
-                </div>
-                <div class="ac-arrow"><i class="bi bi-arrow-right"></i></div>
-            </a>
-
-        </div>
-
-    </div>
-
-<?php include 'footer_shared.php'; ?>
+<script src="vendor/chart.umd.js"></script>
+<script>
+const W=<?= json_js($ts['weeks']) ?>, TOP=<?= json_js($top) ?>, ST=<?= json_js($ov['status']) ?>;
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+Chart.defaults.font.family="'DM Sans',sans-serif";
+function theme(){Chart.defaults.color=css('--text-secondary');Chart.defaults.borderColor=css('--border');}
+theme();
+new Chart(cEpi,{data:{labels:W.labels,datasets:[
+ {type:'bar',label:'Cas notifiés',data:W.total,backgroundColor:'#93c5fd'},
+ {type:'bar',label:'Confirmés',data:W.confirmed,backgroundColor:'#e53e3e'},
+ {type:'line',label:'Moyenne mobile 4 sem.',data:W.moving_avg_4w,borderColor:'#0a6cbc',tension:.3,pointRadius:0,borderWidth:2}]},
+ options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{maxTicksLimit:14}},y:{beginAtZero:true,ticks:{precision:0}}},plugins:{legend:{position:'bottom'}}}});
+new Chart(cTop,{type:'bar',data:{labels:Object.keys(TOP),datasets:[{label:'Cas',data:Object.values(TOP).map(v=>v.total),backgroundColor:'#0a6cbc'},{label:'Confirmés',data:Object.values(TOP).map(v=>v.confirmed),backgroundColor:'#e53e3e'}]},
+ options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,scales:{x:{beginAtZero:true,ticks:{precision:0}}},plugins:{legend:{position:'bottom'}}}});
+const L={confirmed:'Confirmés',probable:'Probables',suspect:'Suspects',negative:'Négatifs',unknown:'Non classés'},C={confirmed:'#e53e3e',probable:'#f59e0b',suspect:'#3b82f6',negative:'#10b981',unknown:'#94a3b8'};
+new Chart(cStatus,{type:'doughnut',data:{labels:Object.keys(ST).map(k=>L[k]),datasets:[{data:Object.values(ST),backgroundColor:Object.keys(ST).map(k=>C[k])}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}});
+</script>
+<?php endif; include __DIR__ . '/_footer.php';

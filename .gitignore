@@ -1,7 +1,7 @@
 .env
 .env.*
+!.env.example
 .vercel
-config/*.json
-cache/
 *.pem
 *.key
+*.local.json

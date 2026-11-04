@@ -1,30 +1,19 @@
-# pharmaco-3.2 (DVSSER) — déploiement Vercel
+# Pharmaco / Mpox — analyse directe du Google Sheet
 
-PHP 8.x + PostgreSQL (Neon), exécuté sur Vercel via `vercel-php@0.9.0`.
+Aucune base de données : des **services PHP** lisent le Google Sheet (API v4, lecture seule, colonnes nominatives jamais téléchargées), calculent tous les indicateurs, et les pages de visualisation les appellent directement.
 
-## Structure
-- `app/` scripts PHP (non servis directement) · `api/index.php` routeur unique (liste blanche)
-- `public/` fichiers statiques (css, js, images, Districts.geojson) · `database/` schéma SQL
+## Architecture
+- `src/Sheets/` : sources de données (Google Sheets, fixture de test), cache disque + repli sur cache périmé.
+- `src/Services/` : `MpoxDataset` (normalisation), `EpiAnalyticsService` (indicateurs, courbes, géographie, démographie, clinique, laboratoire), `OutbreakAlertService` (alertes Poisson par district), `DataQualityService`.
+- `app/` : pages (`index`, `situation`, `carte`, `alertes`, `actualiser`), routées par `api/index.php`.
+- Authentification sans état : cookie signé HMAC, rôles Super Admin / Analyste / Visualiseur, CSRF.
 
-## 1. Avant tout : révoquer les secrets qui étaient dans le dépôt
-- Clé de compte de service Google (`private_key_id` 3a112f25…, projet `wired-ripsaw-471110-p6`) : la supprimer dans Google Cloud > IAM > Comptes de service > Clés, en créer une nouvelle.
-- Mot de passe MySQL InfinityFree et mots de passe applicatifs de l'ancien fichier SQL (`admin`, `Test`) : à changer/considérer comme compromis.
-- Ils restent visibles dans l'historique Git : si le dépôt est public, rendez-le privé ou purgez l'historique (`git filter-repo`).
+## Configuration
+Voir `.env.example`. Générer un utilisateur : `echo 'MotDePasse' | php tools/make_user.php admin "Super Admin"`.
+Partager le Sheet (lecture) avec l'e-mail du **nouveau** compte de service. Recommandé : règle de rate-limit WAF Vercel sur `/Login`.
 
-## 2. Base de données : Neon (PostgreSQL) via Vercel
-1. Vercel > votre projet > **Storage** > *Create Database* > **Neon** (offre gratuite) > connecter au projet (Production + Preview). Vercel injecte `DATABASE_URL` automatiquement.
-2. Dans la console SQL de Neon, exécutez `database/schema.sql` (5 tables : client, medicament, users, app_sessions, login_attempts), puis `database/seed_demo_data.sql` si vous voulez des données de test.
-3. Créez le Super Admin : `DATABASE_URL='postgresql://…' php database/create_admin.php admin vous@exemple.mg`
-4. Migration des données existantes (InfinityFree/MySQL) : exportez `client` et `medicament` en CSV depuis phpMyAdmin, puis importez-les dans Neon (colonnes en minuscules : id, nom, prenom, age, genre, type, residence, district, date_de_sousmission / id_client, type, nombres, date). Ne migrez pas les mots de passe : recréez les comptes.
+## Tests
+`php tests/run.php` (services vs calculs Python indépendants) ; `bash tests/google_source_test.sh` (chemin Google contre un faux serveur).
 
-## 3. Vercel
-Import du dépôt (Framework : *Other*, pas de build). Variables : `DATABASE_URL` (auto via Neon) et `GOOGLE_SA_JSON_B64` (pages Mpox, nouvelle clé).
-
-## Sécurité mise en place
-Aucun secret dans le code · requêtes préparées · CSRF sur tous les POST · rôles vérifiés côté serveur sur chaque page/endpoint ·
-mots de passe `password_hash` + anti brute-force (5 échecs/15 min) · `session_regenerate_id` · cookies Secure/HttpOnly/SameSite ·
-sessions en base · erreurs masquées · TLS cURL activé · en-têtes (HSTS, CSP, X-Frame-Options…) · outils de diagnostic supprimés.
-
-## Limites connues
-- `parametre.php` : la matrice de permissions n'est pas persistée (comportement d'origine).
-- La CSP autorise `unsafe-inline` (scripts inline existants) ; à durcir avec des nonces.
+## Pages supprimées
+Modules pharmacie / base de données : récupérables dans la branche `fix/vercel-security-hardening`.
