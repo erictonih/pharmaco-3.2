@@ -51,3 +51,5 @@ if (PHP_SAPI !== 'cli' && !headers_sent()) {
     header_remove('X-Powered-By');
     if (is_https()) { header('Strict-Transport-Security: max-age=31536000; includeSubDomains'); }
 }
+
+if (PHP_SAPI !== 'cli') { ob_start(); } // tampon de sortie : les en-têtes/cookies restent possibles

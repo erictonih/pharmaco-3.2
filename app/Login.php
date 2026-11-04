@@ -3,6 +3,7 @@ require __DIR__ . '/../src/bootstrap.php';
 use Pharmaco\Auth\Auth;
 if (Auth::session()) { header('Location: index.php'); exit(); }
 $error = null;
+Auth::csrfToken(); // pose le cookie CSRF avant toute sortie HTML
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     Auth::csrfCheck();
     $error = Auth::attempt(trim((string) ($_POST['username'] ?? '')), (string) ($_POST['password'] ?? ''));
