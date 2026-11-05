@@ -105,15 +105,39 @@ final class GoogleSheetsSource implements SheetsSource
         return $s;
     }
 
+    /** Lit GOOGLE_SA_JSON_B64 de façon tolérante : base64 (standard/URL-safe, espaces, guillemets) ou JSON brut. */
+    private static function serviceAccount(): ?array {
+        $raw = trim((string) env_get('GOOGLE_SA_JSON_B64', ''));
+        if ($raw === '') { error_log('[pharmaco][sheets] GOOGLE_SA_JSON_B64 absente ou vide (vérifier l\'environnement Production)'); return null; }
+        if (strlen($raw) > 1 && ($raw[0] === '"' || $raw[0] === "'") && $raw[-1] === $raw[0]) { $raw = trim(substr($raw, 1, -1)); }
+        $key = null; $how = 'json brut';
+        if ($raw[0] === '{') { $key = json_decode($raw, true); }
+        if (!is_array($key)) {
+            $how = 'base64';
+            $clean = preg_replace('/\s+/', '', strtr($raw, '-_', '+/'));
+            $dec = base64_decode($clean . str_repeat('=', (4 - strlen($clean) % 4) % 4), true);
+            $key = $dec !== false ? json_decode($dec, true) : null;
+        }
+        if (!is_array($key)) {
+            error_log('[pharmaco][sheets] GOOGLE_SA_JSON_B64 illisible : ni JSON ni base64 de JSON (longueur ' . strlen($raw) . ', 1er caractère « ' . $raw[0] . ' »)');
+            return null;
+        }
+        if (($key['type'] ?? '') !== 'service_account' || empty($key['client_email']) || empty($key['private_key'])) {
+            error_log('[pharmaco][sheets] JSON décodé (' . $how . ') mais ce n\'est pas une clé de compte de service complète. Champs présents : ' . implode(',', array_keys($key)));
+            return null;
+        }
+        $key['private_key'] = str_replace('\\n', "\n", (string) $key['private_key']);
+        return $key;
+    }
+
     // ── HTTP / OAuth ──────────────────────────────────────────────────────────
     private function token(): string {
         $f = cache_dir() . '/gtoken.json';
         $c = is_file($f) ? json_decode((string) file_get_contents($f), true) : null;
         if (is_array($c) && ($c['exp'] ?? 0) > time() + 60) { return (string) $c['token']; }
 
-        $b64 = env_get('GOOGLE_SA_JSON_B64');
-        $key = $b64 ? json_decode((string) base64_decode($b64), true) : null;
-        if (!is_array($key) || ($key['type'] ?? '') !== 'service_account') {
+        $key = self::serviceAccount();
+        if ($key === null) {
             throw new RuntimeException('Compte de service Google non configuré (GOOGLE_SA_JSON_B64).');
         }
         $now = time();
