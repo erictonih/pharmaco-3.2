@@ -35,17 +35,40 @@ final class Auth
         ]);
     }
 
-    /** @return array<string,array{hash:string,role:string}> */
+    /** Décode APP_USERS_JSON de façon tolérante (guillemets autour, BOM, base64, objet seul). */
+    private static function parseUsersEnv(): array {
+        $raw = trim((string) env_get('APP_USERS_JSON', ''));
+        $raw = ltrim($raw, "\xEF\xBB\xBF");
+        if ($raw === '') { error_log('[pharmaco][auth] APP_USERS_JSON absent ou vide'); return []; }
+        if (strlen($raw) > 1 && $raw[0] === $raw[-1] && ($raw[0] === '"' || $raw[0] === "'")) { $raw = trim(substr($raw, 1, -1)); }
+        if ($raw !== '' && $raw[0] !== '[' && $raw[0] !== '{') {
+            $dec = base64_decode($raw, true);
+            if ($dec !== false) { $raw = trim($dec); }
+        }
+        $list = json_decode($raw, true);
+        if ($list === null && str_contains($raw, '\\"')) { $list = json_decode(stripcslashes($raw), true); }
+        if (!is_array($list)) { error_log('[pharmaco][auth] APP_USERS_JSON illisible : ' . json_last_error_msg()); return []; }
+        if (isset($list['username']) || isset($list['user'])) { $list = [$list]; }
+        return $list;
+    }
+
+    /** @return array<string,array{hash:string,role:string,name:string}> */
     private static function users(): array {
-        $json = env_get('APP_USERS_JSON', '[]');
-        $list = json_decode((string) $json, true);
         $out = [];
-        if (is_array($list)) {
-            foreach ($list as $u) {
-                if (isset($u['username'], $u['hash'], $u['role']) && in_array($u['role'], self::ROLES, true)) {
-                    $out[strtolower((string) $u['username'])] = ['hash' => (string) $u['hash'], 'role' => (string) $u['role'], 'name' => (string) $u['username']];
-                }
+        foreach (self::parseUsersEnv() as $i => $u) {
+            if (!is_array($u)) { error_log("[pharmaco][auth] entrée #$i ignorée : pas un objet"); continue; }
+            $name = trim((string) ($u['username'] ?? $u['user'] ?? ''));
+            $hash = trim((string) ($u['hash'] ?? $u['password_hash'] ?? ''));
+            $role = null;
+            foreach (self::ROLES as $r) { if (strcasecmp(trim((string) ($u['role'] ?? '')), $r) === 0) { $role = $r; } }
+            if ($name === '' || $role === null || !preg_match('/^\$(2y|2a|2b|argon2i|argon2id)\$/', $hash)) {
+                error_log("[pharmaco][auth] entrée #$i ignorée : "
+                    . ($name === '' ? 'username manquant ' : '')
+                    . ($role === null ? 'rôle invalide (attendu : ' . implode('|', self::ROLES) . ') ' : '')
+                    . (!preg_match('/^\$(2y|2a|2b|argon2i|argon2id)\$/', $hash) ? 'hash invalide (doit être un password_hash, pas un mot de passe en clair) ' : ''));
+                continue;
             }
+            $out[strtolower($name)] = ['hash' => $hash, 'role' => $role, 'name' => $name];
         }
         return $out;
     }
@@ -88,6 +111,7 @@ final class Auth
         $u = $users[strtolower($username)] ?? null;
         $ok = password_verify($password, $u['hash'] ?? '$2y$10$usesomesillystringforsaltuQ3m3o3ZyqkVJ7k0mR8mV1l6w5p9x2a') && $u !== null;
         if (!$ok) {
+            error_log('[pharmaco][auth] échec : ' . ($u === null ? 'utilisateur inconnu (' . count($users) . ' compte(s) chargé(s))' : 'mot de passe différent du hash'));
             $n = ($lf['t'] > time() - 900 ? $lf['n'] : 0) + 1;
             $payload = self::b64e(json_encode(['n' => $n, 't' => time()]));
             self::setCookie('PH_LF', $payload . '.' . self::sign('lf' . $payload), time() + 900);
