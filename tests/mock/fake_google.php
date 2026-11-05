@@ -25,5 +25,7 @@ if (str_ends_with($path, ':batchGet')) {
     }
     echo json_encode(['valueRanges' => $out]); exit;
 }
-if (str_contains($path, '/values/')) { echo json_encode(['values' => [array_map(fn($h) => $h, $fx['headers'])]]); exit; }
+if (str_contains($path, '/values/')) {
+    if (str_contains(urldecode($path), "'BDD'")) { http_response_code(400); echo json_encode(['error' => ['message' => "Unable to parse range: 'BDD'!1:1"]]); exit; } echo json_encode(['values' => [array_map(fn($h) => $h, $fx['headers'])]]); exit; }
+if (preg_match('#/v4/spreadsheets/[^/]+$#', $path)) { echo json_encode(['sheets' => [['properties' => ['title' => 'Base']], ['properties' => ['title' => 'Analyse']]]]); exit; }
 http_response_code(404); echo json_encode(['error' => ['message' => 'not found']]);

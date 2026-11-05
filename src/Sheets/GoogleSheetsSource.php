@@ -55,9 +55,27 @@ final class GoogleSheetsSource implements SheetsSource
     private function download(array $wanted): array {
         $token = $this->token();
         $base  = $this->apiBase . '/v4/spreadsheets/' . rawurlencode($this->spreadsheetId) . '/values';
-        $tab   = "'" . str_replace("'", "''", $this->tab) . "'";
+        $q = fn(string $t) => "'" . str_replace("'", "''", $t) . "'";
+        $tab = $q($this->tab);
 
-        $head = $this->get("$base/" . rawurlencode("$tab!1:1"), $token);
+        try {
+            $head = $this->get("$base/" . rawurlencode("$tab!1:1"), $token);
+        } catch (RuntimeException $e) {
+            if (!str_contains($e->getMessage(), 'Unable to parse range')) { throw $e; }
+            // Onglet introuvable : on cherche un nom proche, puis « Base », sinon on liste les onglets disponibles.
+            $meta = $this->get($this->apiBase . '/v4/spreadsheets/' . rawurlencode($this->spreadsheetId) . '?fields=sheets.properties.title', $token);
+            $titles = array_map(fn($x) => (string) ($x['properties']['title'] ?? ''), $meta['sheets'] ?? []);
+            $pick = null;
+            foreach ([$this->tab, 'Base'] as $cand) {
+                foreach ($titles as $t) { if (strcasecmp(trim($t), trim($cand)) === 0) { $pick = $t; break 2; } }
+            }
+            if ($pick === null) {
+                throw new RuntimeException("Onglet « {$this->tab} » introuvable. Onglets disponibles : " . implode(', ', $titles) . ' (définir MPOX_SHEET_TAB).');
+            }
+            error_log("[pharmaco][sheets] Onglet « {$this->tab} » introuvable, utilisation de « $pick ».");
+            $this->tab = $pick; $tab = $q($pick);
+            $head = $this->get("$base/" . rawurlencode("$tab!1:1"), $token);
+        }
         $headers = $head['values'][0] ?? [];
         if (!$headers) { throw new RuntimeException("En-têtes introuvables (onglet « {$this->tab} » ?)"); }
 
@@ -172,7 +190,6 @@ final class GoogleSheetsSource implements SheetsSource
         if ($method === 'POST') { curl_setopt($ch, CURLOPT_POST, true); curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query((array) $form)); }
         $out = curl_exec($ch);
         $err = curl_error($ch);
-        curl_close($ch);
         if ($out === false) { throw new RuntimeException("cURL : $err"); }
         return (string) $out;
     }

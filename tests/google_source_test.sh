@@ -18,6 +18,8 @@ t("même nombre de lignes que la fixture", count($ds->cases), $exp["parsed_total
 t("aucune colonne manquante", $ds->meta["missing_columns"], []);
 t("indicateurs identiques (confirmés)", (new EpiAnalyticsService($ds))->overview()["status"]["confirmed"], $exp["status"]["confirmed"]);
 t("colonne nominative jamais téléchargée", str_contains(json_encode($ds->cases), "FICTIF"), false);
+$bad = new GoogleSheetsSource(getenv("MPOX_SHEET_ID") ?: "x", "BDD", 0, 30000, "http://127.0.0.1:8095", "http://127.0.0.1:8095/token");
+t("onglet inexistant -> repli sur Base", count(MpoxDataset::load($bad)->cases), $exp["parsed_total"] + 1);
 t("cache utilisé (pas stale)", MpoxDataset::load($src)->meta["stale"], false);
 touch("/tmp/fake_google_down"); sleep(2);
 $d2 = MpoxDataset::load($src);
