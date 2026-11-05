@@ -13,6 +13,7 @@ $nav = [
     'carte'     => ['carte.php',     'bi-map', 'Carte des districts'],
     'alertes'   => ['alertes.php',   'bi-exclamation-triangle', 'Alertes & qualité des données'],
 ];
+$admin_nav = Auth::can('Super Admin') ? ['utilisateurs' => ['utilisateurs.php', 'bi-people', 'Utilisateurs']] : [];
 function fr($n, int $d = 0): string { return $n === null ? '—' : number_format((float) $n, $d, ',', ' '); }
 function json_js($v): string { return json_encode($v, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_PARTIAL_OUTPUT_ON_ERROR); }
 ?>
@@ -52,6 +53,16 @@ function json_js($v): string { return json_encode($v, JSON_UNESCAPED_UNICODE | J
             <?php endforeach; ?>
         </ul>
     </div>
+    <?php if ($admin_nav): ?>
+    <div class="dv-sidebar-section">
+        <div class="dv-sidebar-label">Administration</div>
+        <ul class="dv-nav">
+            <?php foreach ($admin_nav as $key => [$href, $icon, $label]): ?>
+            <li class="<?= $active_page === $key ? 'active' : '' ?>"><a href="<?= h($href) ?>"><i class="bi <?= h($icon) ?> nav-icon"></i> <?= h($label) ?></a></li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+    <?php endif; ?>
     <div class="dv-sidebar-footer">
         <div class="dv-user-box">
             <div class="dv-avatar"><?= h(strtoupper(substr($uname, 0, 2))) ?></div>

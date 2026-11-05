@@ -52,8 +52,8 @@ final class Auth
         return $list;
     }
 
-    /** @return array<string,array{hash:string,role:string,name:string}> */
-    private static function users(): array {
+    /** Comptes de secours définis dans APP_USERS_JSON. @return array<string,array{hash:string,role:string,name:string}> */
+    public static function envUsers(): array {
         $out = [];
         foreach (self::parseUsersEnv() as $i => $u) {
             if (!is_array($u)) { error_log("[pharmaco][auth] entrée #$i ignorée : pas un objet"); continue; }
@@ -73,6 +73,9 @@ final class Auth
         return $out;
     }
 
+    /** Comptes de connexion : base de données (Turso) + APP_USERS_JSON. */
+    private static function users(): array { return \Pharmaco\Users\UserService::credentials(); }
+
     // ── Session ───────────────────────────────────────────────────────────────
     public static function session(): ?array {
         if (self::$session !== null) { return self::$session ?: null; }
@@ -91,7 +94,10 @@ final class Auth
     public static function can(string ...$roles): bool { return in_array(self::role(), $roles, true); }
 
     public static function requireLogin(): void {
-        if (!self::session()) { header('Location: /Login.php'); exit(); }
+        if (!self::session() || !\Pharmaco\Users\UserService::stillValid((string) self::user())) {
+            if (self::session()) { self::logout(); }          // compte supprimé : session révoquée
+            header('Location: /Login.php'); exit();
+        }
     }
     public static function requireRole(string ...$roles): void {
         self::requireLogin();
