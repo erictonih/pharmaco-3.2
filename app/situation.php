@@ -40,6 +40,8 @@ if ($ctx['ds']):
 <h3 class="dv-section-title">3. Personne</h3>
 <div class="grid g3" style="margin-bottom:16px">
   <div class="dv-card"><div class="dv-card-header">Âge et sexe</div><div class="chart-box"><canvas id="cAge"></canvas></div><p class="muted"><?= fr($demo['unknown_age']) ?> cas sans âge renseigné · sex-ratio H/F : <?= fr($demo['sex_ratio_mf'], 2) ?></p></div>
+  <div class="dv-card"><div class="dv-card-header">Sex-ratio H/F</div><div class="chart-box"><canvas id="cSex"></canvas></div><p class="muted">Global : <?= fr($demo['sex_ratio_mf'], 2) ?> homme(s) pour 1 femme · <?= fr($demo['sex']['M']) ?> H / <?= fr($demo['sex']['F']) ?> F<?= $demo['sex']['U'] ? ' / ' . fr($demo['sex']['U']) . ' non renseigné' : '' ?></p></div>
+  <div class="dv-card"><div class="dv-card-header">Sex-ratio H/F par tranche d'âge</div><div class="chart-box"><canvas id="cSexAge"></canvas></div><p class="muted">Ligne pointillée = parité (1,0).</p></div>
   <div class="dv-card"><div class="dv-card-header">Statut VIH</div><div class="chart-box"><canvas id="cHiv"></canvas></div></div>
   <div class="dv-card"><div class="dv-card-header">Vaccination Mpox</div><div class="chart-box"><canvas id="cVac"></canvas></div><p class="muted">Femmes enceintes : <?= fr($demo['pregnant']) ?> · lien épidémiologique : <?= fr($demo['epi_link_pct'], 1) ?> %</p></div>
 </div>
@@ -77,6 +79,9 @@ new Chart(cMonth,{type:'bar',data:{labels:M.labels,datasets:[{label:'Cas',data:M
 new Chart(cReg,{type:'bar',data:{labels:Object.keys(REG),datasets:[{label:'Cas',data:Object.values(REG).map(v=>v.total),backgroundColor:'#0a6cbc'},{label:'Confirmés',data:Object.values(REG).map(v=>v.confirmed),backgroundColor:'#e53e3e'}]},options:opt({indexAxis:'y',scales:{x:{beginAtZero:true,ticks:{precision:0}}}})});
 const AG=Object.keys(DEMO.age_sex);
 new Chart(cAge,{type:'bar',data:{labels:AG,datasets:[{label:'Hommes',data:AG.map(g=>DEMO.age_sex[g].M),backgroundColor:'#0a6cbc'},{label:'Femmes',data:AG.map(g=>DEMO.age_sex[g].F),backgroundColor:'#ec4899'}]},options:opt({scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true,ticks:{precision:0}}}})});
+new Chart(cSex,{type:'doughnut',data:{labels:['Hommes','Femmes','Non renseigné'],datasets:[{data:[DEMO.sex.M,DEMO.sex.F,DEMO.sex.U],backgroundColor:['#0a6cbc','#ec4899','#94a3b8']}]},options:opt()});
+(function(){const r=AG.map(g=>DEMO.sex_ratio_by_age[g].ratio);
+new Chart(cSexAge,{data:{labels:AG,datasets:[{type:'bar',label:'Sex-ratio H/F',data:r,backgroundColor:'#0a6cbc'},{type:'line',label:'Parité',data:AG.map(()=>1),borderColor:'#6b7280',borderDash:[6,4],pointRadius:0}]},options:opt({scales:{y:{beginAtZero:true}}})});})();
 new Chart(cHiv,{type:'doughnut',data:{labels:Object.keys(DEMO.hiv),datasets:[{data:Object.values(DEMO.hiv),backgroundColor:PAL}]},options:opt()});
 const VL={yes:'Vacciné',no:'Non vacciné',unknown:'Non renseigné'};
 new Chart(cVac,{type:'doughnut',data:{labels:Object.keys(DEMO.vaccination).map(k=>VL[k]),datasets:[{data:Object.values(DEMO.vaccination),backgroundColor:['#10b981','#e53e3e','#94a3b8']}]},options:opt()});

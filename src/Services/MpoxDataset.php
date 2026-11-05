@@ -27,7 +27,7 @@ final class MpoxDataset
         'lien' => 'Lien épidémiologique (Oui, Non)', 'prelev' => 'Prélèvement (Oui ou Non)',
         'labo' => 'Laboratoire (IPM ou LA2M)', 'clade' => 'Clade', 'genomique' => 'Charactères génomiques',
     ];
-    public const AGE_GROUPS = ['< 5', '5-14', '15-24', '25-34', '35-44', '45+'];
+    public const AGE_GROUPS = ['<1 an', '1-4 ans', '5-14 ans', '15-49 ans', '50+ ans'];
 
     /** @var array<int,array<string,mixed>> */
     public array $cases = [];
@@ -143,7 +143,7 @@ final class MpoxDataset
 
     public static function ageGroup(?int $a): string {
         if ($a === null) { return 'Non renseigné'; }
-        return match (true) { $a < 5 => '< 5', $a < 15 => '5-14', $a < 25 => '15-24', $a < 35 => '25-34', $a < 45 => '35-44', default => '45+' };
+        return match (true) { $a < 1 => '<1 an', $a < 5 => '1-4 ans', $a < 15 => '5-14 ans', $a < 50 => '15-49 ans', default => '50+ ans' };
     }
 
     /** Accepte jj/mm/aaaa (1 ou 2 chiffres), aaaa-mm-jj et les numéros de série Sheets/Excel. Retourne Y-m-d ou null. */

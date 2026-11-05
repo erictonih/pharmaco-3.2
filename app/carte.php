@@ -24,11 +24,18 @@ if ($ctx['ds']):
 </div>
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <script src="vendor/leaflet/leaflet.js"></script>
+<?php
+// Fond de carte CARTO (Voyager). La clé est lue dans CARTO_API_KEY (variable d'environnement Vercel).
+$cartoKey = (string) env_get('CARTO_API_KEY', '');
+$tileUrl = $cartoKey !== ''
+    ? 'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=' . rawurlencode($cartoKey)
+    : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+?>
 <script>
 const DATA=<?= json_js($geo['map']) ?>;
 const key=s=>(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'');
 const map=L.map('map',{zoomSnap:.25}).setView([-19,46.5],5.5);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OpenStreetMap, © CARTO',maxZoom:12}).addTo(map);
+L.tileLayer(<?= json_js($tileUrl) ?>,{attribution:'© OpenStreetMap, © CARTO',maxZoom:18}).addTo(map);
 const COLORS=['#f1f5f9','#fde68a','#fbbf24','#f97316','#dc2626','#7f1d1d'];
 let layer,gj;
 function breaks(vals){const m=Math.max(...vals,1);return [0,1,Math.ceil(m*.2),Math.ceil(m*.4),Math.ceil(m*.7)];}

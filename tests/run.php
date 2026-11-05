@@ -25,8 +25,7 @@ t('parseDate texte', MpoxDataset::parseDate('pas une date'), null);
 t('clé district accents', MpoxDataset::key('Antananarivo-Nord'), 'antananarivonord');
 t('alias Mahajanga II', MpoxDataset::key('Mahajanga II'), 'mahajangarural');
 t('alias Toliara 1', MpoxDataset::key('Toliara 1'), 'toliaryurban');
-t('tranche 4 ans', MpoxDataset::ageGroup(4), '< 5');
-t('tranche 45', MpoxDataset::ageGroup(45), '45+');
+foreach ([[0,'<1 an'],[1,'1-4 ans'],[4,'1-4 ans'],[5,'5-14 ans'],[14,'5-14 ans'],[15,'15-49 ans'],[49,'15-49 ans'],[50,'50+ ans'],[80,'50+ ans']] as [$a,$g]) { t("tranche $a ans", MpoxDataset::ageGroup($a), $g); }
 t('lignes lues (168 valides + 1 date illisible)', count($ds->cases), $exp['parsed_total'] + $exp['bad_rows']);
 t('aucune donnée nominative dans les cas', array_key_exists('NOM PRENOMS', $ds->cases[0]) || str_contains(json_encode($ds->cases), 'FICTIF'), false);
 

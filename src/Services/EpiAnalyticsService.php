@@ -131,7 +131,9 @@ final class EpiAnalyticsService
             if ($x['pregnant']) { $preg++; } if ($x['epi_link']) { $link++; }
         }
         $total = count($this->ds->cases);
-        return ['age_sex' => $pyr, 'sex' => $sex, 'sex_ratio_mf' => $sex['F'] > 0 ? round($sex['M'] / $sex['F'], 2) : null,
+        $ratioByAge = [];
+        foreach ($pyr as $g => $c) { $ratioByAge[$g] = ['M' => $c['M'], 'F' => $c['F'], 'ratio' => $c['F'] > 0 ? round($c['M'] / $c['F'], 2) : null]; }
+        return ['age_sex' => $pyr, 'sex_ratio_by_age' => $ratioByAge, 'sex' => $sex, 'sex_ratio_mf' => $sex['F'] > 0 ? round($sex['M'] / $sex['F'], 2) : null,
                 'unknown_age' => $unknownAge, 'hiv' => $hiv, 'vaccination' => $vac, 'pregnant' => $preg,
                 'epi_link_pct' => self::pct($link, $total)];
     }
