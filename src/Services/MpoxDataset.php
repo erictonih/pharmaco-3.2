@@ -26,6 +26,8 @@ final class MpoxDataset
         'deces' => 'Décès oui/non', 'date_deces' => 'Date de décès',
         'lien' => 'Lien épidémiologique (Oui, Non)', 'prelev' => 'Prélèvement (Oui ou Non)',
         'labo' => 'Laboratoire (IPM ou LA2M)', 'clade' => 'Clade', 'genomique' => 'Charactères génomiques',
+        // facultatives (rapport « point de situation »)
+        'age_mois' => 'Age (mois)', 'ist' => 'IST Non VIH', 'remarques' => 'Remarques', 'commentaires' => 'Commentaires',
     ];
     public const AGE_GROUPS = ['<1 an', '1-4 ans', '5-14 ans', '15-49 ans', '50+ ans'];
 
@@ -126,10 +128,35 @@ final class MpoxDataset
             'vaccinated' => $yes($vaccin) ? 'yes' : (str_starts_with($vaccin, 'non') ? 'no' : 'unknown'),
             'pregnant' => $yes($lo($g('enceinte'))), 'epi_link' => $yes($lo($g('lien'))),
             'diag_date' => self::parseDate($g('date_diag')),
+            'inconclusive' => $status === 'unknown' && (bool) preg_match('/non\s*concluant|ind[ée]termin|inconclu|douteux/u', $concl . ' ' . $classif),
+            'death_date' => $dead ? (self::parseDate($g('date_deces')) ?? $date) : null,
+            'age_label' => self::ageLabel($age, $g('age_mois')),
+            'comorbidity' => self::comorbidity($vih, $g('ist'), $g('remarques') . ' ' . $g('commentaires')),
             // valeurs brutes pour le contrôle qualité
             'raw_classification' => $g('classification'), 'raw_evolution' => $g('evolution'), 'raw_se' => $g('se'),
             'raw_date' => $g('date_notif'),
         ];
+    }
+
+    /** « 3 », « 5 mois » (nourrisson de moins d'un an) ou « — ». */
+    private static function ageLabel(?int $age, string $months): string {
+        if ($age === null) { return '—'; }
+        if ($age === 0 && is_numeric(str_replace(',', '.', $months))) {
+            $m = (float) str_replace(',', '.', $months);
+            return $m >= 1 ? (int) round($m) . ' mois' : '< 1 mois';
+        }
+        return (string) $age;
+    }
+
+    /** Comorbidités citées : PVVIH (statut VIH) + IST/pathologies repérées dans les colonnes IST et commentaires. */
+    private static function comorbidity(string $vih, string $ist, string $free): string {
+        $parts = [];
+        if (str_contains($vih, 'pos') || str_contains($vih, 'confirm')) { $parts[] = 'PVVIH'; }
+        $txt = mb_strtolower($ist . ' ' . $free, 'UTF-8');
+        foreach (['syphilis' => 'Syphilis', 'condylome' => 'Condylome', 'tubercul' => 'Tuberculose', 'diab' => 'Diabète', 'hépatite' => 'Hépatite', 'hepatite' => 'Hépatite', 'hta' => 'HTA', 'malnutri' => 'Malnutrition'] as $kw => $label) {
+            if (str_contains($txt, $kw) && !in_array($label, $parts, true)) { $parts[] = $label; }
+        }
+        return $parts ? implode(' + ', $parts) : 'NON';
     }
 
     private static function status(string $s): ?string {
