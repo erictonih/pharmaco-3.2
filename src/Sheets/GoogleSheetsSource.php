@@ -23,8 +23,8 @@ final class GoogleSheetsSource implements SheetsSource
     public static function fromEnv(): self {
         $local = env_get('APP_ENV') === 'local';   // URL de l'API surchargeables UNIQUEMENT en local (tests avec faux serveur)
         return new self(
-            env_get('MPOX_SHEET_ID', '1VdqjKcr00GmRI-FuOopXhRwYolvkUJmtp3DSV9ow4CE'),
-            env_get('MPOX_SHEET_TAB', 'Base'),
+            env_get('MPOX_SHEET_ID', '1DUmH_kDYnpUyfPXiHBO8YyWtcXZlsl6jREHMoFLxMVw'),
+            env_get('MPOX_SHEET_TAB', 'BDD'),
             (int) env_get('SHEETS_CACHE_TTL', '300'),
             30000,
             $local ? env_get('SHEETS_API_BASE', 'https://sheets.googleapis.com') : 'https://sheets.googleapis.com',
@@ -85,7 +85,9 @@ final class GoogleSheetsSource implements SheetsSource
         $cols = []; $missing = [];
         foreach ($wanted as $w) {
             $n = self::norm($w);
-            if (isset($index[$n])) { $cols[$w] = $index[$n]; } else { $missing[] = $w; }
+            $found = null;
+            foreach (array_merge([$n], self::ALIASES[$n] ?? []) as $cand) { if (isset($index[$cand])) { $found = $index[$cand]; break; } }
+            if ($found !== null) { $cols[$w] = $found; } else { $missing[] = $w; }
         }
         if (!$cols) { throw new RuntimeException('Aucune colonne attendue trouvée dans le Sheet.'); }
 
@@ -113,6 +115,9 @@ final class GoogleSheetsSource implements SheetsSource
         }
         return ['rows' => $rows, 'missing' => $missing, 'fetched_at' => time(), 'source' => 'google_sheets'];
     }
+
+    /** Noms d'en-tête alternatifs rencontrés dans les classeurs réels. */
+    private const ALIASES = ['décès oui/non' => ['decede oui/non', 'décédé oui/non', 'deces oui/non', 'décédé(e) oui/non']];
 
     public static function norm(string $h): string {
         return mb_strtolower(trim((string) preg_replace('/\s+/u', ' ', $h)), 'UTF-8');
