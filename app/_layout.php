@@ -12,6 +12,7 @@ $nav = [
     'situation' => ['situation.php', 'bi-bar-chart-line', 'Analyse épidémiologique'],
     'carte'     => ['carte.php',     'bi-map', 'Carte des districts'],
     'rapport'   => ['rapport.php',   'bi-file-earmark-slides', 'Point de situation (PDF / PPT)'],
+    'sitrep'    => ['sitrep.php',    'bi-file-earmark-word', 'SitRep hebdo (PDF / Word)'],
     'alertes'   => ['alertes.php',   'bi-exclamation-triangle', 'Alertes & qualité des données'],
 ];
 $admin_nav = Auth::can('Super Admin') ? ['utilisateurs' => ['utilisateurs.php', 'bi-people', 'Utilisateurs']] : [];
