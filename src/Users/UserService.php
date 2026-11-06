@@ -12,6 +12,8 @@ use Pharmaco\Auth\Auth;
 final class UserService
 {
     public const MIN_PASSWORD = 12;
+    public const TYPES = ['permanent' => 'Permanent', 'limite' => 'Limité (suppression automatique à l’expiration)'];
+    public const TZ = 'Indian/Antananarivo';                // heure saisie / affichée pour les expirations (UTC+3)
 
     public static function store(): ?UserStore {
         if (env_get('APP_ENV') === 'local' && ($f = env_get('USERS_FILE'))) { return new FileUserStore($f); }
@@ -22,11 +24,17 @@ final class UserService
     public static function listAll(): array {
         $out = []; $error = null; $store = self::store();
         if ($store) {
-            try { foreach ($store->all() as $u) { $out[mb_strtolower($u['username'], 'UTF-8')] = $u + ['source' => 'db']; } }
+            try {
+                $now = gmdate('Y-m-d H:i:s');
+                foreach ($store->all() as $u) {
+                    if (!empty($u['expires_at']) && $u['expires_at'] <= $now) { continue; }          // filet de sécurité : jamais d'accès après expiration
+                    $out[mb_strtolower($u['username'], 'UTF-8')] = $u + ['source' => 'db'];
+                }
+            }
             catch (\Throwable $e) { $error = 'Base de données des utilisateurs injoignable.'; error_log('[pharmaco][users] ' . $e->getMessage()); }
         }
         foreach (Auth::envUsers() as $key => $u) {
-            $out[$key] = ['username' => $u['name'], 'hash' => $u['hash'], 'role' => $u['role'], 'created_at' => '', 'created_by' => '', 'source' => 'env'];
+            $out[$key] = ['username' => $u['name'], 'hash' => $u['hash'], 'role' => $u['role'], 'created_at' => '', 'created_by' => '', 'expires_at' => null, 'source' => 'env'];
         }
         uasort($out, fn($a, $b) => strcasecmp($a['username'], $b['username']));
         return ['users' => array_values($out), 'db' => $store !== null && $error === null, 'error' => $error, 'configured' => $store !== null];
@@ -49,17 +57,41 @@ final class UserService
         return null;
     }
 
+    /** Convertit « 2026-12-31T17:30 » (heure de Madagascar) en UTC « Y-m-d H:i:s ». @return array{0:?string,1:?string} [utc, erreur] */
+    public static function expiryUtc(string $type, string $local): array {
+        if ($type === 'permanent') { return [null, null]; }
+        if ($type !== 'limite') { return [null, 'Type de compte invalide.']; }
+        $d = \DateTimeImmutable::createFromFormat('!Y-m-d\TH:i', trim($local), new \DateTimeZone(self::TZ));
+        if (!$d) { return [null, 'Date d’expiration invalide.']; }
+        $utc = $d->setTimezone(new \DateTimeZone('UTC'));
+        if ($utc->getTimestamp() < time() + 60) { return [null, 'La date d’expiration doit être dans le futur.']; }
+        if ($utc->getTimestamp() > time() + 5 * 366 * 86400) { return [null, 'Date d’expiration trop lointaine (5 ans maximum) : créez plutôt un compte permanent.']; }
+        return [$utc->format('Y-m-d H:i:s'), null];
+    }
+
+    /** Affiche une date UTC de la base en heure de Madagascar. */
+    public static function localTime(?string $utc): string {
+        if (!$utc) { return '—'; }
+        return (new \DateTimeImmutable($utc, new \DateTimeZone('UTC')))->setTimezone(new \DateTimeZone(self::TZ))->format('d/m/Y H:i');
+    }
+
     /** @return string|null message d'erreur */
-    public static function create(string $actor, string $username, string $role, string $password, string $confirm): ?string {
+    public static function create(string $actor, string $username, string $role, string $password, string $confirm, string $type = 'permanent', string $expiresLocal = ''): ?string {
         if ($e = self::validate($username, $role, $password, $confirm)) { return $e; }
+        [$expires, $e] = self::expiryUtc($type, $expiresLocal);
+        if ($e) { return $e; }
         $store = self::store();
         if (!$store) { return 'Base de données des utilisateurs non configurée (TURSO_DATABASE_URL / TURSO_AUTH_TOKEN).'; }
         $all = self::listAll();
         if ($all['error']) { return $all['error']; }
         foreach ($all['users'] as $u) { if (strcasecmp($u['username'], $username) === 0) { return 'Cet identifiant existe déjà.'; } }
-        try { $store->create($username, password_hash($password, PASSWORD_DEFAULT), $role, $actor); }
+        try { $store->create($username, password_hash($password, PASSWORD_DEFAULT), $role, $actor, $expires); }
         catch (\Throwable $e) { error_log('[pharmaco][users] création : ' . $e->getMessage()); return 'Création impossible (identifiant déjà utilisé ou base indisponible).'; }
-        error_log("[pharmaco][users] $actor a créé le compte « $username » ($role)");
+        // Relecture : on ne confirme la création que si le compte est réellement retrouvé dans le stockage persistant.
+        $found = false;
+        try { foreach ($store->all() as $u) { if (strcasecmp($u['username'], $username) === 0) { $found = true; } } } catch (\Throwable $e) { error_log('[pharmaco][users] relecture : ' . $e->getMessage()); }
+        if (!$found) { error_log("[pharmaco][users] ALERTE : compte « $username » non retrouvé après écriture"); return 'Le compte n’a pas été enregistré durablement dans la base : réessayez ou lancez le test de persistance.'; }
+        error_log("[pharmaco][users] $actor a créé le compte « $username » ($role" . ($expires ? ", expire $expires UTC" : ', permanent') . ')');
         return null;
     }
 

@@ -9,7 +9,7 @@ php -r '
 require "src/bootstrap.php";
 use Pharmaco\Users\UserService; use Pharmaco\Auth\Auth; $f = 0;
 function t($n,$g,$w){ global $f; if($g===$w){echo "  ok   $n\n";}else{$f++;echo "  FAIL $n: ".json_encode($g)." / ".json_encode($w)."\n";} }
-$PW = "MotDePasse-1234";
+$PW = "MotDePasse-1234"; function rm_cache(){ foreach (glob(cache_dir() . "/uv_*") ?: [] as $x) { @unlink($x); } }
 t("liste initiale = compte de secours", array_column(UserService::listAll()["users"], "source", "username"), ["root" => "env"]);
 t("création valide", UserService::create("root", "alice", "Analyste", $PW, $PW), null);
 t("liste fusionnée", array_column(UserService::listAll()["users"], "username"), ["alice", "root"]);
@@ -39,6 +39,37 @@ t("base en panne : création refusée", UserService::create("root", "zed", "Anal
 t("base en panne : sessions non coupées", UserService::stillValid("adm3"), true);
 t("base en panne : connexion de secours", Auth::attempt("root", "RootPassword123"), null);
 unlink("/tmp/fake_turso_down");
+// ── Comptes limités / permanents ──
+$fut = (new DateTimeImmutable("+2 days", new DateTimeZone("Indian/Antananarivo")))->format("Y-m-d\\TH:i");
+t("type invalide", UserService::create("root", "tmp0", "Analyste", $PW, $PW, "x", ""), "Type de compte invalide.");
+t("limité sans date", UserService::create("root", "tmp0", "Analyste", $PW, $PW, "limite", ""), "Date d’expiration invalide.");
+t("limité date passée", UserService::create("root", "tmp0", "Analyste", $PW, $PW, "limite", "2020-01-01T10:00"), "La date d’expiration doit être dans le futur.");
+t("limité trop lointain", str_contains((string) UserService::create("root", "tmp0", "Analyste", $PW, $PW, "limite", "2099-01-01T10:00"), "trop lointaine"), true);
+t("création compte limité", UserService::create("root", "tmp1", "Visualiseur", $PW, $PW, "limite", $fut), null);
+$u = array_values(array_filter(UserService::listAll()["users"], fn($x) => $x["username"] === "tmp1"))[0] ?? null;
+t("expires_at stocké en UTC (+2 j, ±1 min)", $u && abs(strtotime($u["expires_at"] . " UTC") - (time() + 2 * 86400)) < 120, true);
+t("affichage en heure de Madagascar", $u ? UserService::localTime($u["expires_at"]) === (new DateTimeImmutable($u["expires_at"], new DateTimeZone("UTC")))->setTimezone(new DateTimeZone("Indian/Antananarivo"))->format("d/m/Y H:i") : false, true);
+t("compte permanent sans expiration", array_values(array_filter(UserService::listAll()["users"], fn($x) => $x["username"] === "adm3"))[0]["expires_at"], null);
+t("connexion compte limité avant expiration", Auth::attempt("tmp1", $PW), null);
+// expiration : on recule la date directement dans la base (faux Turso = SQLite)
+$db = new PDO("sqlite:/tmp/fake_turso.db"); $db->exec("UPDATE app_users SET expires_at = \"2020-01-01 00:00:00\" WHERE username_lc = \"tmp1\"");
+rm_cache();
+t("compte expiré : connexion refusée", Auth::attempt("tmp1", $PW) !== null, true);
+t("compte expiré : accès révoqué", UserService::stillValid("tmp1"), false);
+t("compte expiré : supprimé de la base", (int) $db->query("SELECT COUNT(*) FROM app_users WHERE username_lc = \"tmp1\"")->fetchColumn(), 0);
+t("compte expiré : absent de la liste", in_array("tmp1", array_column(UserService::listAll()["users"], "username"), true), false);
+// migration : ancienne table sans expires_at
+$db->exec("DROP TABLE app_users"); $db->exec("CREATE TABLE app_users (username TEXT PRIMARY KEY, username_lc TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, role TEXT NOT NULL, created_at TEXT NOT NULL, created_by TEXT NOT NULL DEFAULT \"\")");
+$db->exec("INSERT INTO app_users VALUES (\"old\",\"old\",\"h\",\"Analyste\",\"2026-01-01 00:00:00\",\"root\")");
+$r = new ReflectionProperty(Pharmaco\Users\TursoUserStore::class, "migrated"); $r->setValue(null, false);
+$l = UserService::listAll();
+t("ancienne base migrée : compte conservé et permanent", [array_key_exists("old", array_column($l["users"], "expires_at", "username")) ? array_column($l["users"], "expires_at", "username")["old"] : "absent", $l["error"]], [null, null]);
+t("ancienne base migrée : création limitée possible", UserService::create("root", "new1", "Analyste", $PW, $PW, "limite", $fut), null);
+// persistance : nouveau « processus » (état statique réinitialisé) relit les mêmes données
+$r->setValue(null, false);
+t("persistance après redémarrage", in_array("new1", array_column(UserService::listAll()["users"], "username"), true), true);
+$h = UserService::store()->health();
+t("test de persistance (écriture + relecture)", [$h["roundtrip"], $h["users"] >= 2], [true, true]);
 echo $f ? "$f échec(s)\n" : "OK\n"; exit($f ? 1 : 0);
 ' 2>&1 | grep -v "^\[pharmaco\]\|^\[.*\] \[pharmaco"
 RC=${PIPESTATUS[0]}
@@ -54,6 +85,11 @@ chk "page utilisateurs (Super Admin)" "$(curl -s -o /dev/null -w '%{http_code}' 
 T=$(tok /tmp/ja.txt)
 chk "création refusée sans CSRF" "$(curl -s -o /dev/null -w '%{http_code}' -b /tmp/ja.txt -d 'action=create&username=eve&role=Visualiseur&password=MotDePasse-1234&confirm=MotDePasse-1234' $B/utilisateurs.php)" 403
 chk "création via la page" "$(curl -s -o /dev/null -w '%{http_code}' -b /tmp/ja.txt -d "csrf=$T&action=create&username=eve&role=Visualiseur&password=MotDePasse-1234&confirm=MotDePasse-1234" $B/utilisateurs.php)" 302
+chk "création compte limité via la page" "$(curl -s -o /dev/null -w '%{http_code}' -b /tmp/ja.txt -d "csrf=$T&action=create&username=lim1&role=Visualiseur&type=limite&expires=2099-01-01T10:00&password=MotDePasse-1234&confirm=MotDePasse-1234" $B/utilisateurs.php)" 200
+EXP=$(date -d "+3 days" +%Y-%m-%dT%H:%M)
+chk "création compte limité valide via la page" "$(curl -s -o /dev/null -w '%{http_code}' -b /tmp/ja.txt -d "csrf=$T&action=create&username=lim2&role=Visualiseur&type=limite&expires=$EXP&password=MotDePasse-1234&confirm=MotDePasse-1234" $B/utilisateurs.php)" 302
+chk "liste affiche Limité + expiration" "$(curl -s -b /tmp/ja.txt $B/utilisateurs.php | grep -A4 '<strong>lim2</strong>' | grep -c 'expire le')" 1
+chk "test de persistance via la page" "$(curl -s -b /tmp/ja.txt -d "csrf=$T&action=diag" $B/utilisateurs.php | grep -c 'Écriture et relecture réussies')" 1
 chk "liste contient eve" "$(curl -s -b /tmp/ja.txt $B/utilisateurs.php | grep -c '<strong>eve</strong>')" 1
 chk "connexion du nouvel utilisateur" "$(login /tmp/je.txt eve MotDePasse-1234)" 302
 chk "Visualiseur : page utilisateurs interdite" "$(curl -s -o /dev/null -w '%{http_code}%{redirect_url}' -b /tmp/je.txt $B/utilisateurs.php | sed 's#http://127.0.0.1:8090##')" "302/access_denied.php"

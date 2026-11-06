@@ -27,3 +27,6 @@ Les comptes de `APP_USERS_JSON` restent des comptes de secours (non supprimables
 
 ## Pages supprimées
 Modules pharmacie / base de données : récupérables dans la branche `fix/vercel-security-hardening`.
+
+## Comptes utilisateurs (Turso, persistants)
+La page `utilisateurs.php` (Super Admin) écrit dans la base distante Turso (`TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`) : aucun stockage local éphémère n'est utilisé en production (le fichier JSON n'existe qu'avec `APP_ENV=local` + `USERS_FILE`). Chaque création est relue dans la base avant d'être confirmée, et le bouton « Tester la persistance » fait un aller-retour écriture/lecture réel. Types de compte : **Permanent**, ou **Limité** avec date/heure d'expiration (heure de Madagascar) : à l'expiration le compte perd l'accès immédiatement et est supprimé de la base à la lecture suivante. Les comptes de `APP_USERS_JSON` restent des comptes de secours permanents. Test : `bash tests/users_test.sh`.
