@@ -2,7 +2,7 @@
 require __DIR__ . '/../src/bootstrap.php';
 use Pharmaco\Auth\Auth;
 use Pharmaco\Services\{ServiceFactory, EpiAnalyticsService, OutbreakAlertService};
-Auth::requireLogin();
+Auth::requireLogin('home');
 
 $ctx = ServiceFactory::context($_GET);
 $page_title = 'Tableau de bord'; $active_page = 'index';

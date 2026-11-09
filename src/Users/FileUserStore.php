@@ -29,6 +29,24 @@ final class FileUserStore implements UserStore
         return count($d) < $n;
     }
 
+    // ── Abonnement VIP : fichiers JSON annexes (développement/tests uniquement) ──
+    private function aux(string $n): array { $f = $this->file . '.' . $n; $d = is_file($f) ? json_decode((string) file_get_contents($f), true) : []; return is_array($d) ? $d : []; }
+    private function putAux(string $n, array $d): void { file_put_contents($this->file . '.' . $n, json_encode($d), LOCK_EX); }
+    public function subscriptionUntil(string $username): ?string { return $this->aux('subs')[mb_strtolower($username, 'UTF-8')] ?? null; }
+    public function subscriptions(): array { return $this->aux('subs'); }
+    public function createPayment(string $id, string $username, int $amount, string $currency, int $days): void {
+        $p = $this->aux('pay'); $p[$id] = ['id' => $id, 'username' => mb_strtolower($username, 'UTF-8'), 'amount' => $amount, 'currency' => $currency, 'days' => $days, 'status' => 'pending', 'created_at' => gmdate('Y-m-d H:i:s')]; $this->putAux('pay', $p);
+    }
+    public function payment(string $id): ?array { return $this->aux('pay')[$id] ?? null; }
+    public function confirmPayment(string $id): ?string {
+        $p = $this->aux('pay'); if (($p[$id]['status'] ?? '') !== 'pending') { return null; }
+        $p[$id]['status'] = 'confirmed'; $this->putAux('pay', $p);
+        $now = gmdate('Y-m-d H:i:s'); $s = $this->aux('subs'); $cur = $s[$p[$id]['username']] ?? null; $base = ($cur && $cur > $now) ? $cur : $now;
+        $s[$p[$id]['username']] = (new \DateTimeImmutable($base, new \DateTimeZone('UTC')))->modify('+' . $p[$id]['days'] . ' days')->format('Y-m-d H:i:s'); $this->putAux('subs', $s);
+        return $s[$p[$id]['username']];
+    }
+    public function cancelPayment(string $id): void { $p = $this->aux('pay'); if (($p[$id]['status'] ?? '') === 'pending') { $p[$id]['status'] = 'cancelled'; $this->putAux('pay', $p); } }
+
     public function health(): array {
         $t = microtime(true); $probe = $this->file . '.probe'; $v = bin2hex(random_bytes(4));
         $ok = @file_put_contents($probe, $v) !== false && @file_get_contents($probe) === $v; @unlink($probe);

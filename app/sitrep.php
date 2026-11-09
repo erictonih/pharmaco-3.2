@@ -2,7 +2,7 @@
 require __DIR__ . '/../src/bootstrap.php';
 use Pharmaco\Auth\Auth;
 use Pharmaco\Services\{ServiceFactory, SitRepService};
-Auth::requireLogin();
+Auth::requireLogin('premium');
 
 $ctx = ServiceFactory::context([]);                          // jeu de données complet : la période est appliquée par SitRepService
 $page_title = 'SitRep hebdomadaire (PDF / Word)'; $active_page = 'sitrep';

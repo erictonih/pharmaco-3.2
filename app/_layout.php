@@ -11,10 +11,13 @@ $nav = [
     'index'     => ['index.php',     'bi-speedometer2', 'Tableau de bord'],
     'situation' => ['situation.php', 'bi-bar-chart-line', 'Analyse épidémiologique'],
     'carte'     => ['carte.php',     'bi-map', 'Carte des districts'],
-    'rapport'   => ['rapport.php',   'bi-file-earmark-slides', 'Point de situation (PDF / PPT)'],
-    'sitrep'    => ['sitrep.php',    'bi-file-earmark-word', 'SitRep hebdo (PDF / Word)'],
+    'rapport'   => ['rapport.php',   'bi-file-earmark-slides', 'Point de situation (PDF / PPT) ★'],
+    'sitrep'    => ['sitrep.php',    'bi-file-earmark-word', 'SitRep hebdo (PDF / Word) ★'],
     'alertes'   => ['alertes.php',   'bi-exclamation-triangle', 'Alertes & qualité des données'],
 ];
+$zones = ['index' => 'home', 'situation' => 'std', 'carte' => 'std', 'alertes' => 'std', 'rapport' => 'premium', 'sitrep' => 'premium'];
+$nav = array_filter($nav, fn($k) => Auth::allows($zones[$k] ?? 'std'), ARRAY_FILTER_USE_KEY);
+if (Auth::can('VIP')) { $nav['paiement'] = ['paiement.php', 'bi-star', 'Abonnement VIP']; }
 $admin_nav = Auth::can('Super Admin') ? ['utilisateurs' => ['utilisateurs.php', 'bi-people', 'Utilisateurs']] : [];
 function fr($n, int $d = 0): string { return $n === null ? '—' : number_format((float) $n, $d, ',', ' '); }
 function json_js($v): string { return json_encode($v, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_PARTIAL_OUTPUT_ON_ERROR); }

@@ -2,7 +2,7 @@
 require __DIR__ . '/../src/bootstrap.php';
 use Pharmaco\Auth\Auth;
 use Pharmaco\Services\{ServiceFactory, ReportService};
-Auth::requireLogin();
+Auth::requireLogin('premium');
 
 $ctx = ServiceFactory::context([]);                          // jeu de données complet : la période est appliquée par ReportService
 $page_title = 'Point de situation'; $active_page = 'rapport';

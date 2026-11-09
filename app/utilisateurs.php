@@ -25,9 +25,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $ok = ['created' => 'Utilisateur créé.', 'deleted' => 'Utilisateur supprimé.'][(string) ($_GET['ok'] ?? '')] ?? null;
 
 $L = UserService::listAll();
+$subs = []; try { $subs = UserService::store() ? UserService::store()->subscriptions() : []; } catch (\Throwable $e) { error_log('[pharmaco][users] abonnements : ' . $e->getMessage()); }
 $page_title = 'Gestion des utilisateurs'; $active_page = 'utilisateurs';
 include __DIR__ . '/_layout.php';
-$roleDesc = ['Super Admin' => 'Accès complet, gestion des utilisateurs', 'Analyste' => 'Consultation et actualisation des données', 'Visualiseur' => 'Consultation seule'];
+$roleDesc = ['Super Admin' => 'Accès complet, gestion des utilisateurs', 'Analyste' => 'Consultation et actualisation des données', 'Visualiseur' => 'Consultation seule', 'VIP' => 'Module payant (SitRep, Point de situation) après abonnement'];
 ?>
 <?php if ($ok): ?><div class="dv-alert dv-alert-success" role="status"><?= h($ok) ?></div><?php endif; ?>
 <?php if ($error): ?><div class="dv-alert dv-alert-error" role="alert"><?= h($error) ?></div><?php endif; ?>
@@ -45,7 +46,8 @@ $roleDesc = ['Super Admin' => 'Accès complet, gestion des utilisateurs', 'Analy
       <tr>
         <td><strong><?= h($u['username']) ?></strong><?= $self ? ' <span class="muted">(vous)</span>' : '' ?></td>
         <td><?= h($u['role']) ?></td>
-        <td><?php if (!empty($u['expires_at'])): ?><span class="lvl lvl2">Limité</span> <span class="muted">expire le <?= h(UserService::localTime($u['expires_at'])) ?></span><?php else: ?><span class="lvl lvl1">Permanent</span><?php endif; ?></td>
+        <td><?php if (!empty($u['expires_at'])): ?><span class="lvl lvl2">Limité</span> <span class="muted">expire le <?= h(UserService::localTime($u['expires_at'])) ?></span><?php else: ?><span class="lvl lvl1">Permanent</span><?php endif; ?>
+          <?php if ($u['role'] === 'VIP'): $su = $subs[mb_strtolower($u['username'], 'UTF-8')] ?? null; ?><div class="muted"><?= $su && $su > gmdate('Y-m-d H:i:s') ? 'Abonnement jusqu’au ' . h(UserService::localTime($su)) : 'Aucun abonnement actif' ?></div><?php endif; ?></td>
         <td><?= $u['source'] === 'env' ? '<span class="muted">Configuration serveur</span>' : 'Base de données' ?></td>
         <td class="muted"><?= $u['created_at'] ? h($u['created_at']) . ' UTC' : '—' ?></td>
         <td class="muted"><?= h($u['created_by'] ?: '—') ?></td>

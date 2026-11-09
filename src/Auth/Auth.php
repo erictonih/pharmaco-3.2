@@ -10,7 +10,7 @@ namespace Pharmaco\Auth;
  */
 final class Auth
 {
-    public const ROLES = ['Super Admin', 'Analyste', 'Visualiseur'];
+    public const ROLES = ['Super Admin', 'Analyste', 'Visualiseur', 'VIP'];
     private const COOKIE = 'PH_SESS';
     private const TTL = 28800;
     private static ?array $session = null;
@@ -93,10 +93,24 @@ final class Auth
     public static function role(): string  { return self::session()['r'] ?? ''; }
     public static function can(string ...$roles): bool { return in_array(self::role(), $roles, true); }
 
-    public static function requireLogin(): void {
+    /**
+     * Zones : 'std' (défaut : pages d'analyse, interdites aux VIP), 'home' (accueil : tous les rôles),
+     * 'premium' (module payant : Super Admin et VIP), 'billing' (page de paiement : VIP et Super Admin).
+     */
+    public static function allows(string $zone): bool {
+        $r = self::role();
+        return match ($zone) { 'home' => true, 'premium', 'billing' => $r === 'VIP' || $r === 'Super Admin', default => $r !== 'VIP' };
+    }
+
+    public static function requireLogin(string $zone = 'std'): void {
         if (!self::session() || !\Pharmaco\Users\UserService::stillValid((string) self::user())) {
             if (self::session()) { self::logout(); }          // compte supprimé : session révoquée
             header('Location: /Login.php'); exit();
+        }
+        if (!self::allows($zone)) { http_response_code(403); header('Location: /access_denied.php'); exit(); }
+        // Compte VIP sans abonnement actif : toujours redirigé vers la page de paiement.
+        if (self::role() === 'VIP' && $zone !== 'billing' && !\Pharmaco\Billing\PaymentService::isActive((string) self::user())) {
+            header('Location: /paiement.php'); exit();
         }
     }
     public static function requireRole(string ...$roles): void {

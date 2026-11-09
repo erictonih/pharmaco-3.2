@@ -17,4 +17,16 @@ interface UserStore
     /** Test d'écriture/lecture réel sur le stockage (diagnostic de persistance).
      *  @return array{backend:string,host:string,users:int,roundtrip:bool,ms:int} */
     public function health(): array;
+
+    // ── Abonnement VIP (paiements) ──
+    /** Date de fin d'abonnement (UTC « Y-m-d H:i:s ») ou null. */
+    public function subscriptionUntil(string $username): ?string;
+    /** @return array<string,string> identifiant (minuscules) => fin d'abonnement UTC */
+    public function subscriptions(): array;
+    public function createPayment(string $id, string $username, int $amount, string $currency, int $days): void;
+    /** @return ?array{id:string,username:string,amount:int,currency:string,days:int,status:string,created_at:string} */
+    public function payment(string $id): ?array;
+    /** Confirme une transaction « pending » une seule fois (idempotent) et prolonge l'abonnement. @return ?string nouvelle fin UTC, null si déjà traitée */
+    public function confirmPayment(string $id): ?string;
+    public function cancelPayment(string $id): void;
 }
