@@ -94,12 +94,16 @@ final class Auth
     public static function can(string ...$roles): bool { return in_array(self::role(), $roles, true); }
 
     /**
-     * Zones : 'std' (défaut : pages d'analyse, interdites aux VIP), 'home' (accueil : tous les rôles),
-     * 'premium' (module payant : Super Admin et VIP), 'billing' (page de paiement : VIP et Super Admin).
+     * Zones : 'std' (défaut : pages d'analyse) et 'home' (accueil) : tous les rôles ; 'premium' (module payant) : Super Admin et VIP ;
+     * 'billing' (page de paiement) : VIP et Super Admin. Un VIP n'accède à rien d'autre que 'billing' sans abonnement actif.
      */
     public static function allows(string $zone): bool {
         $r = self::role();
-        return match ($zone) { 'home' => true, 'premium', 'billing' => $r === 'VIP' || $r === 'Super Admin', default => $r !== 'VIP' };
+        return match ($zone) {
+            'billing' => $r === 'VIP' || $r === 'Super Admin',
+            'premium' => $r === 'VIP' || $r === 'Super Admin',
+            default => true,            // accueil et pages d'analyse : tous les rôles (un VIP doit en plus avoir un abonnement actif)
+        };
     }
 
     public static function requireLogin(string $zone = 'std'): void {

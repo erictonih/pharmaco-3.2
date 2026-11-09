@@ -16,9 +16,14 @@ final class TursoUserStore implements UserStore
     private const SCHEMA_SUBS = 'CREATE TABLE IF NOT EXISTS app_subscriptions (username_lc TEXT PRIMARY KEY, paid_until TEXT NOT NULL, updated_at TEXT NOT NULL)';
     private const SCHEMA_PAY = 'CREATE TABLE IF NOT EXISTS app_payments (
         id TEXT PRIMARY KEY, username_lc TEXT NOT NULL, amount INTEGER NOT NULL, currency TEXT NOT NULL, days INTEGER NOT NULL,
-        status TEXT NOT NULL, created_at TEXT NOT NULL, confirmed_at TEXT)';
-    /** Migration des bases créées avant l'ajout des comptes limités (ignorée si la colonne existe déjà). */
-    private const MIGRATE = 'ALTER TABLE app_users ADD COLUMN expires_at TEXT';
+        status TEXT NOT NULL, created_at TEXT NOT NULL, confirmed_at TEXT, reference TEXT, sender TEXT, decided_by TEXT, decided_at TEXT, note TEXT)';
+    /** Colonnes ajoutées aux tables créées par une version précédente (erreur « duplicate column » ignorée). */
+    private const ALTERS = [
+        'ALTER TABLE app_users ADD COLUMN expires_at TEXT',
+        'ALTER TABLE app_payments ADD COLUMN reference TEXT', 'ALTER TABLE app_payments ADD COLUMN sender TEXT',
+        'ALTER TABLE app_payments ADD COLUMN decided_by TEXT', 'ALTER TABLE app_payments ADD COLUMN decided_at TEXT', 'ALTER TABLE app_payments ADD COLUMN note TEXT',
+    ];
+    private const INDEXES = ['CREATE UNIQUE INDEX IF NOT EXISTS ix_pay_reference ON app_payments(reference)'];
     private static bool $migrated = false;
 
     public function __construct(private string $baseUrl, private string $token) {
@@ -65,31 +70,43 @@ final class TursoUserStore implements UserStore
         return $out;
     }
 
-    public function createPayment(string $id, string $username, int $amount, string $currency, int $days): void {
-        $this->run([['INSERT INTO app_payments (id, username_lc, amount, currency, days, status, created_at) VALUES (?,?,?,?,?,?,?)',
-            [$id, mb_strtolower($username, 'UTF-8'), $amount, $currency, $days, 'pending', gmdate('Y-m-d H:i:s')]]]);
+    private const PAY_COLS = 'id, username_lc, amount, currency, days, status, reference, sender, created_at, decided_by, decided_at, note';
+    private static function payRow(array $x): array {
+        return ['id' => $x[0], 'username' => $x[1], 'amount' => (int) $x[2], 'currency' => $x[3], 'days' => (int) $x[4], 'status' => $x[5],
+                'reference' => (string) $x[6], 'sender' => (string) $x[7], 'created_at' => $x[8], 'decided_by' => (string) $x[9], 'decided_at' => (string) $x[10], 'note' => (string) $x[11]];
+    }
+
+    public function submitPayment(string $id, string $username, int $amount, string $currency, int $days, string $reference, string $sender): void {
+        $this->run([['INSERT INTO app_payments (id, username_lc, amount, currency, days, status, created_at, reference, sender) VALUES (?,?,?,?,?,?,?,?,?)',
+            [$id, mb_strtolower($username, 'UTF-8'), $amount, $currency, $days, 'submitted', gmdate('Y-m-d H:i:s'), $reference, $sender]]]);
     }
 
     public function payment(string $id): ?array {
-        $x = $this->run([['SELECT id, username_lc, amount, currency, days, status, created_at FROM app_payments WHERE id = ?', [$id]]])[0]['rows'][0] ?? null;
-        return $x ? ['id' => $x[0], 'username' => $x[1], 'amount' => (int) $x[2], 'currency' => $x[3], 'days' => (int) $x[4], 'status' => $x[5], 'created_at' => $x[6]] : null;
+        $x = $this->run([['SELECT ' . self::PAY_COLS . ' FROM app_payments WHERE id = ?', [$id]]])[0]['rows'][0] ?? null;
+        return $x ? self::payRow($x) : null;
     }
 
-    public function confirmPayment(string $id): ?string {
+    public function payments(?string $status = null, ?string $username = null, int $limit = 50): array {
+        $w = []; $a = [];
+        if ($status !== null) { $w[] = 'status = ?'; $a[] = $status; }
+        if ($username !== null) { $w[] = 'username_lc = ?'; $a[] = mb_strtolower($username, 'UTF-8'); }
+        $r = $this->run([['SELECT ' . self::PAY_COLS . ' FROM app_payments' . ($w ? ' WHERE ' . implode(' AND ', $w) : '') . ' ORDER BY created_at DESC LIMIT ' . max(1, min(200, $limit)), $a]])[0]['rows'];
+        return array_map([self::class, 'payRow'], $r);
+    }
+
+    public function decidePayment(string $id, bool $accept, string $by, string $note): ?string {
         $now = gmdate('Y-m-d H:i:s');
-        // Transition atomique pending -> confirmed : une transaction ne prolonge l'abonnement qu'une seule fois.
-        $r = $this->run([['UPDATE app_payments SET status = ?, confirmed_at = ? WHERE id = ? AND status = ?', ['confirmed', $now, $id, 'pending']]])[0];
+        // Transition atomique submitted -> confirmed|rejected : une transaction n'est traitée qu'une seule fois.
+        $r = $this->run([['UPDATE app_payments SET status = ?, decided_by = ?, decided_at = ?, confirmed_at = ?, note = ? WHERE id = ? AND status = ?',
+            [$accept ? 'confirmed' : 'rejected', $by, $now, $accept ? $now : null, $note, $id, 'submitted']]])[0];
         if ($r['affected'] < 1) { return null; }
+        if (!$accept) { return ''; }
         $p = $this->payment($id); if (!$p) { return null; }
         $cur = $this->subscriptionUntil($p['username']);
         $base = ($cur !== null && $cur > $now) ? $cur : $now;
         $until = (new \DateTimeImmutable($base, new \DateTimeZone('UTC')))->modify('+' . $p['days'] . ' days')->format('Y-m-d H:i:s');
         $this->run([['INSERT OR REPLACE INTO app_subscriptions (username_lc, paid_until, updated_at) VALUES (?,?,?)', [$p['username'], $until, $now]]]);
         return $until;
-    }
-
-    public function cancelPayment(string $id): void {
-        $this->run([['UPDATE app_payments SET status = ? WHERE id = ? AND status = ?', ['cancelled', $id, 'pending']]]);
     }
 
     public function health(): array {
@@ -111,10 +128,12 @@ final class TursoUserStore implements UserStore
      */
     private function run(array $stmts): array {
         $reqs = [['type' => 'execute', 'stmt' => ['sql' => self::SCHEMA]]];
-        $pre = 1;
-        if (!self::$migrated) {                                  // schéma complet + migration : une seule fois par instance
-            foreach ([self::SCHEMA_SUBS, self::SCHEMA_PAY, self::MIGRATE] as $q) { $reqs[] = ['type' => 'execute', 'stmt' => ['sql' => $q]]; }
-            $pre = 4;
+        $pre = 1; $tolerant = [];
+        if (!self::$migrated) {                                  // schéma complet + migrations : une seule fois par instance
+            foreach ([self::SCHEMA_SUBS, self::SCHEMA_PAY] as $q) { $reqs[] = ['type' => 'execute', 'stmt' => ['sql' => $q]]; }
+            foreach (self::ALTERS as $q) { $tolerant[count($reqs)] = true; $reqs[] = ['type' => 'execute', 'stmt' => ['sql' => $q]]; }
+            foreach (self::INDEXES as $q) { $reqs[] = ['type' => 'execute', 'stmt' => ['sql' => $q]]; }
+            $pre = count($reqs);
         }
         foreach ($stmts as [$sql, $args]) {
             $reqs[] = ['type' => 'execute', 'stmt' => ['sql' => $sql, 'args' => array_map(static fn($a) => $a === null ? ['type' => 'null'] : ['type' => 'text', 'value' => (string) $a], $args)]];
@@ -137,7 +156,7 @@ final class TursoUserStore implements UserStore
         foreach ($j['results'] as $i => $r) {
             if (($r['type'] ?? '') === 'error') {
                 $m = (string) ($r['error']['message'] ?? 'erreur');
-                if ($pre === 4 && $i === 3 && stripos($m, 'duplicate column') !== false) { continue; }       // colonne déjà migrée
+                if (isset($tolerant[$i]) && stripos($m, 'duplicate column') !== false) { continue; }       // colonne déjà migrée
                 throw new RuntimeException('Turso SQL : ' . $m);
             }
             if ($i < $pre || ($r['response']['type'] ?? '') !== 'execute') { continue; }       // 0 (et 1) = schéma / migration

@@ -23,10 +23,13 @@ interface UserStore
     public function subscriptionUntil(string $username): ?string;
     /** @return array<string,string> identifiant (minuscules) => fin d'abonnement UTC */
     public function subscriptions(): array;
-    public function createPayment(string $id, string $username, int $amount, string $currency, int $days): void;
-    /** @return ?array{id:string,username:string,amount:int,currency:string,days:int,status:string,created_at:string} */
+    /** Enregistre la référence MVola déclarée par l'utilisateur (statut « submitted »). Lève une exception si la référence existe déjà. */
+    public function submitPayment(string $id, string $username, int $amount, string $currency, int $days, string $reference, string $sender): void;
+    /** @return ?array{id:string,username:string,amount:int,currency:string,days:int,status:string,reference:string,sender:string,created_at:string,decided_by:string,decided_at:string,note:string} */
     public function payment(string $id): ?array;
-    /** Confirme une transaction « pending » une seule fois (idempotent) et prolonge l'abonnement. @return ?string nouvelle fin UTC, null si déjà traitée */
-    public function confirmPayment(string $id): ?string;
-    public function cancelPayment(string $id): void;
+    /** Transactions, plus récentes d'abord. @return list<array> */
+    public function payments(?string $status = null, ?string $username = null, int $limit = 50): array;
+    /** Valide ou rejette une transaction « submitted » (une seule fois) ; si validée, prolonge l'abonnement.
+     *  @return ?string nouvelle fin d'abonnement UTC (validation), '' (rejet), null si déjà traitée */
+    public function decidePayment(string $id, bool $accept, string $by, string $note): ?string;
 }

@@ -34,18 +34,24 @@ final class FileUserStore implements UserStore
     private function putAux(string $n, array $d): void { file_put_contents($this->file . '.' . $n, json_encode($d), LOCK_EX); }
     public function subscriptionUntil(string $username): ?string { return $this->aux('subs')[mb_strtolower($username, 'UTF-8')] ?? null; }
     public function subscriptions(): array { return $this->aux('subs'); }
-    public function createPayment(string $id, string $username, int $amount, string $currency, int $days): void {
-        $p = $this->aux('pay'); $p[$id] = ['id' => $id, 'username' => mb_strtolower($username, 'UTF-8'), 'amount' => $amount, 'currency' => $currency, 'days' => $days, 'status' => 'pending', 'created_at' => gmdate('Y-m-d H:i:s')]; $this->putAux('pay', $p);
+    public function submitPayment(string $id, string $username, int $amount, string $currency, int $days, string $reference, string $sender): void {
+        $p = $this->aux('pay'); foreach ($p as $x) { if ($x['reference'] === $reference) { throw new \RuntimeException('UNIQUE constraint failed'); } }
+        $p[$id] = ['id' => $id, 'username' => mb_strtolower($username, 'UTF-8'), 'amount' => $amount, 'currency' => $currency, 'days' => $days, 'status' => 'submitted', 'reference' => $reference, 'sender' => $sender,
+                   'created_at' => gmdate('Y-m-d H:i:s'), 'decided_by' => '', 'decided_at' => '', 'note' => '']; $this->putAux('pay', $p);
     }
     public function payment(string $id): ?array { return $this->aux('pay')[$id] ?? null; }
-    public function confirmPayment(string $id): ?string {
-        $p = $this->aux('pay'); if (($p[$id]['status'] ?? '') !== 'pending') { return null; }
-        $p[$id]['status'] = 'confirmed'; $this->putAux('pay', $p);
-        $now = gmdate('Y-m-d H:i:s'); $s = $this->aux('subs'); $cur = $s[$p[$id]['username']] ?? null; $base = ($cur && $cur > $now) ? $cur : $now;
-        $s[$p[$id]['username']] = (new \DateTimeImmutable($base, new \DateTimeZone('UTC')))->modify('+' . $p[$id]['days'] . ' days')->format('Y-m-d H:i:s'); $this->putAux('subs', $s);
-        return $s[$p[$id]['username']];
+    public function payments(?string $status = null, ?string $username = null, int $limit = 50): array {
+        $l = array_values(array_filter($this->aux('pay'), fn($x) => ($status === null || $x['status'] === $status) && ($username === null || $x['username'] === mb_strtolower($username, 'UTF-8'))));
+        usort($l, fn($a, $b) => strcmp($b['created_at'], $a['created_at'])); return array_slice($l, 0, $limit);
     }
-    public function cancelPayment(string $id): void { $p = $this->aux('pay'); if (($p[$id]['status'] ?? '') === 'pending') { $p[$id]['status'] = 'cancelled'; $this->putAux('pay', $p); } }
+    public function decidePayment(string $id, bool $accept, string $by, string $note): ?string {
+        $p = $this->aux('pay'); if (($p[$id]['status'] ?? '') !== 'submitted') { return null; }
+        $now = gmdate('Y-m-d H:i:s'); $p[$id] = ['status' => $accept ? 'confirmed' : 'rejected', 'decided_by' => $by, 'decided_at' => $now, 'note' => $note] + $p[$id]; $this->putAux('pay', $p);
+        if (!$accept) { return ''; }
+        $s = $this->aux('subs'); $u = $p[$id]['username']; $cur = $s[$u] ?? null; $base = ($cur && $cur > $now) ? $cur : $now;
+        $s[$u] = (new \DateTimeImmutable($base, new \DateTimeZone('UTC')))->modify('+' . $p[$id]['days'] . ' days')->format('Y-m-d H:i:s'); $this->putAux('subs', $s);
+        return $s[$u];
+    }
 
     public function health(): array {
         $t = microtime(true); $probe = $this->file . '.probe'; $v = bin2hex(random_bytes(4));
