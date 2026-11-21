@@ -3,6 +3,7 @@
   "functions": {
     "api/*.php": { "runtime": "vercel-php@0.9.0", "memory": 1024, "maxDuration": 30 }
   },
+  "crons": [{ "path": "/sauvegarde.php", "schedule": "0 2 * * *" }],
   "outputDirectory": "public",
   "routes": [
     {

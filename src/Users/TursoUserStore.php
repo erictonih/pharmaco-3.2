@@ -23,6 +23,7 @@ final class TursoUserStore implements UserStore
         'ALTER TABLE app_payments ADD COLUMN reference TEXT', 'ALTER TABLE app_payments ADD COLUMN sender TEXT',
         'ALTER TABLE app_payments ADD COLUMN decided_by TEXT', 'ALTER TABLE app_payments ADD COLUMN decided_at TEXT', 'ALTER TABLE app_payments ADD COLUMN note TEXT',
     ];
+    private const SCHEMA_BACKUPS = 'CREATE TABLE IF NOT EXISTS app_backups (id INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT NOT NULL, created_by TEXT NOT NULL, users INTEGER NOT NULL, payments INTEGER NOT NULL, data TEXT NOT NULL)';
     private const INDEXES = ['CREATE UNIQUE INDEX IF NOT EXISTS ix_pay_reference ON app_payments(reference)'];
     private static bool $migrated = false;
 
@@ -48,10 +49,10 @@ final class TursoUserStore implements UserStore
         return array_map(static fn(array $x) => ['username' => $x[0], 'hash' => $x[1], 'role' => $x[2], 'created_at' => $x[3], 'created_by' => $x[4], 'expires_at' => ($x[5] ?? '') === '' ? null : $x[5]], $r[1]['rows']);
     }
 
-    public function create(string $username, string $hash, string $role, string $createdBy, ?string $expiresAt = null): void {
+    public function create(string $username, string $hash, string $role, string $createdBy, ?string $expiresAt = null, ?string $createdAt = null): void {
         $this->run([[
             'INSERT INTO app_users (username, username_lc, password_hash, role, created_at, created_by, expires_at) VALUES (?,?,?,?,?,?,?)',
-            [$username, mb_strtolower($username, 'UTF-8'), $hash, $role, gmdate('Y-m-d H:i:s'), $createdBy, $expiresAt],
+            [$username, mb_strtolower($username, 'UTF-8'), $hash, $role, $createdAt ?? gmdate('Y-m-d H:i:s'), $createdBy, $expiresAt],
         ]]);
     }
 
@@ -90,7 +91,7 @@ final class TursoUserStore implements UserStore
         $w = []; $a = [];
         if ($status !== null) { $w[] = 'status = ?'; $a[] = $status; }
         if ($username !== null) { $w[] = 'username_lc = ?'; $a[] = mb_strtolower($username, 'UTF-8'); }
-        $r = $this->run([['SELECT ' . self::PAY_COLS . ' FROM app_payments' . ($w ? ' WHERE ' . implode(' AND ', $w) : '') . ' ORDER BY created_at DESC LIMIT ' . max(1, min(200, $limit)), $a]])[0]['rows'];
+        $r = $this->run([['SELECT ' . self::PAY_COLS . ' FROM app_payments' . ($w ? ' WHERE ' . implode(' AND ', $w) : '') . ' ORDER BY created_at DESC LIMIT ' . max(1, min(5000, $limit)), $a]])[0]['rows'];
         return array_map([self::class, 'payRow'], $r);
     }
 
@@ -107,6 +108,34 @@ final class TursoUserStore implements UserStore
         $until = (new \DateTimeImmutable($base, new \DateTimeZone('UTC')))->modify('+' . $p['days'] . ' days')->format('Y-m-d H:i:s');
         $this->run([['INSERT OR REPLACE INTO app_subscriptions (username_lc, paid_until, updated_at) VALUES (?,?,?)', [$p['username'], $until, $now]]]);
         return $until;
+    }
+
+    public function setSubscriptionMax(string $usernameLc, string $until): void {
+        $this->run([['INSERT INTO app_subscriptions (username_lc, paid_until, updated_at) VALUES (?,?,?) ON CONFLICT(username_lc) DO UPDATE SET paid_until = MAX(paid_until, excluded.paid_until), updated_at = excluded.updated_at',
+            [$usernameLc, $until, gmdate('Y-m-d H:i:s')]]]);
+    }
+
+    public function restorePayment(array $p): bool {
+        $r = $this->run([['INSERT OR IGNORE INTO app_payments (id, username_lc, amount, currency, days, status, created_at, confirmed_at, reference, sender, decided_by, decided_at, note) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+            [$p['id'], $p['username'], $p['amount'], $p['currency'], $p['days'], $p['status'], $p['created_at'], $p['status'] === 'confirmed' ? ($p['decided_at'] ?: $p['created_at']) : null,
+             $p['reference'] === '' ? null : $p['reference'], $p['sender'], $p['decided_by'], $p['decided_at'], $p['note']]]])[0];
+        return $r['affected'] > 0;
+    }
+
+    public function saveSnapshot(string $json, string $by, int $users, int $payments, int $keep = 14): void {
+        $this->run([
+            ['INSERT INTO app_backups (created_at, created_by, users, payments, data) VALUES (?,?,?,?,?)', [gmdate('Y-m-d H:i:s'), $by, $users, $payments, $json]],
+            ['DELETE FROM app_backups WHERE id NOT IN (SELECT id FROM app_backups ORDER BY id DESC LIMIT ' . max(1, $keep) . ')', []],
+        ]);
+    }
+
+    public function snapshots(): array {
+        return array_map(fn($x) => ['id' => (string) $x[0], 'created_at' => $x[1], 'created_by' => $x[2], 'users' => (int) $x[3], 'payments' => (int) $x[4]],
+            $this->run([['SELECT id, created_at, created_by, users, payments FROM app_backups ORDER BY id DESC LIMIT 14', []]])[0]['rows']);
+    }
+
+    public function snapshot(string $id): ?string {
+        return $this->run([['SELECT data FROM app_backups WHERE id = ?', [(int) $id]]])[0]['rows'][0][0] ?? null;
     }
 
     public function health(): array {
@@ -130,7 +159,7 @@ final class TursoUserStore implements UserStore
         $reqs = [['type' => 'execute', 'stmt' => ['sql' => self::SCHEMA]]];
         $pre = 1; $tolerant = [];
         if (!self::$migrated) {                                  // schéma complet + migrations : une seule fois par instance
-            foreach ([self::SCHEMA_SUBS, self::SCHEMA_PAY] as $q) { $reqs[] = ['type' => 'execute', 'stmt' => ['sql' => $q]]; }
+            foreach ([self::SCHEMA_SUBS, self::SCHEMA_PAY, self::SCHEMA_BACKUPS] as $q) { $reqs[] = ['type' => 'execute', 'stmt' => ['sql' => $q]]; }
             foreach (self::ALTERS as $q) { $tolerant[count($reqs)] = true; $reqs[] = ['type' => 'execute', 'stmt' => ['sql' => $q]]; }
             foreach (self::INDEXES as $q) { $reqs[] = ['type' => 'execute', 'stmt' => ['sql' => $q]]; }
             $pre = count($reqs);

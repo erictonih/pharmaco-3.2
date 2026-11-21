@@ -15,10 +15,10 @@ final class FileUserStore implements UserStore
         if (count($d) !== count($this->read())) { $this->write($d); }
         usort($d, fn($a, $b) => strcasecmp($a['username'], $b['username'])); return array_map(fn($u) => $u + ['expires_at' => null], $d); }
 
-    public function create(string $username, string $hash, string $role, string $createdBy, ?string $expiresAt = null): void {
+    public function create(string $username, string $hash, string $role, string $createdBy, ?string $expiresAt = null, ?string $createdAt = null): void {
         $d = $this->read();
         foreach ($d as $u) { if (strcasecmp($u['username'], $username) === 0) { throw new \RuntimeException('UNIQUE constraint failed'); } }
-        $d[] = ['username' => $username, 'hash' => $hash, 'role' => $role, 'created_at' => gmdate('Y-m-d H:i:s'), 'created_by' => $createdBy, 'expires_at' => $expiresAt];
+        $d[] = ['username' => $username, 'hash' => $hash, 'role' => $role, 'created_at' => $createdAt ?? gmdate('Y-m-d H:i:s'), 'created_by' => $createdBy, 'expires_at' => $expiresAt];
         $this->write($d);
     }
 
@@ -52,6 +52,19 @@ final class FileUserStore implements UserStore
         $s[$u] = (new \DateTimeImmutable($base, new \DateTimeZone('UTC')))->modify('+' . $p[$id]['days'] . ' days')->format('Y-m-d H:i:s'); $this->putAux('subs', $s);
         return $s[$u];
     }
+
+    public function setSubscriptionMax(string $usernameLc, string $until): void { $s = $this->aux('subs'); if (($s[$usernameLc] ?? '') < $until) { $s[$usernameLc] = $until; $this->putAux('subs', $s); } }
+    public function restorePayment(array $p): bool {
+        $a = $this->aux('pay'); foreach ($a as $x) { if ($x['id'] === $p['id'] || ($p['reference'] !== '' && $x['reference'] === $p['reference'])) { return false; } }
+        $a[$p['id']] = $p; $this->putAux('pay', $a); return true;
+    }
+    public function saveSnapshot(string $json, string $by, int $users, int $payments, int $keep = 14): void {
+        $a = $this->aux('snap'); $id = (string) (count($a) ? max(array_map('intval', array_keys($a))) + 1 : 1);
+        $a[$id] = ['id' => $id, 'created_at' => gmdate('Y-m-d H:i:s'), 'created_by' => $by, 'users' => $users, 'payments' => $payments, 'data' => $json];
+        while (count($a) > $keep) { unset($a[array_key_first($a)]); } $this->putAux('snap', $a);
+    }
+    public function snapshots(): array { $a = array_reverse($this->aux('snap')); return array_values(array_map(fn($x) => array_diff_key($x, ['data' => 1]), $a)); }
+    public function snapshot(string $id): ?string { return $this->aux('snap')[$id]['data'] ?? null; }
 
     public function health(): array {
         $t = microtime(true); $probe = $this->file . '.probe'; $v = bin2hex(random_bytes(4));

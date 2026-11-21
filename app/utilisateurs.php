@@ -1,7 +1,7 @@
 <?php
 require __DIR__ . '/../src/bootstrap.php';
 use Pharmaco\Auth\Auth;
-use Pharmaco\Users\UserService;
+use Pharmaco\Users\{UserService, BackupService};
 Auth::requireRole('Super Admin');                     // page réservée au Super Admin
 
 $me = (string) Auth::user();
@@ -16,13 +16,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'delete') {
         $error = UserService::delete($me, trim((string) ($_POST['username'] ?? '')));
         if ($error === null) { header('Location: utilisateurs.php?ok=deleted'); exit(); }
+    } elseif ($action === 'export' || $action === 'snapshot_dl') {
+        $st = UserService::store(); $json = null;
+        try {
+            if ($st && $action === 'export') { $json = (string) json_encode(BackupService::export($st), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT); }
+            elseif ($st) { $json = $st->snapshot((string) ($_POST['id'] ?? '')); if ($json === null) { $error = 'Sauvegarde introuvable.'; } }
+            else { $error = 'Aucun stockage configuré.'; }
+        } catch (\Throwable $e) { error_log('[pharmaco][backup] export : ' . $e->getMessage()); $error = 'Export impossible : base injoignable.'; }
+        if ($json !== null) {
+            error_log("[pharmaco][backup] $me a téléchargé une sauvegarde");
+            header('Content-Type: application/json; charset=utf-8'); header('Cache-Control: no-store');
+            header('Content-Disposition: attachment; filename="pharmaco-sauvegarde-' . gmdate('Ymd-His') . '.json"'); echo $json; exit();
+        }
+    } elseif ($action === 'import') {
+        $f = $_FILES['backup'] ?? null; $st = UserService::store();
+        if (!$st) { $error = 'Aucun stockage configuré.'; }
+        elseif (!$f || ($f['error'] ?? 1) !== UPLOAD_ERR_OK || !is_uploaded_file((string) $f['tmp_name'])) { $error = 'Choisissez un fichier de sauvegarde (.json).'; }
+        else {
+            $r = BackupService::import($st, (string) file_get_contents($f['tmp_name']), $me);
+            if ($r['error'] === null) { header('Location: utilisateurs.php?ok=restored&u=' . $r['users'] . '&s=' . $r['subscriptions'] . '&p=' . $r['payments'] . '&k=' . $r['skipped']); exit(); }
+            $error = $r['error'];
+        }
+    } elseif ($action === 'snapshot_now') {
+        $st = UserService::store();
+        try { if ($st) { BackupService::snapshot($st, $me); header('Location: utilisateurs.php?ok=snapshot'); exit(); } $error = 'Aucun stockage configuré.'; }
+        catch (\Throwable $e) { error_log('[pharmaco][backup] snapshot : ' . $e->getMessage()); $error = 'Sauvegarde impossible : base injoignable.'; }
     } elseif ($action === 'diag') {
         $st = UserService::store();
         try { $diag = $st ? $st->health() : ['error' => 'Aucun stockage configuré (TURSO_DATABASE_URL / TURSO_AUTH_TOKEN).']; }
         catch (\Throwable $e) { error_log('[pharmaco][users] diagnostic : ' . $e->getMessage()); $diag = ['error' => 'Stockage injoignable : ' . $e->getMessage()]; }
     } else { http_response_code(400); $error = 'Action inconnue.'; }
 }
-$ok = ['created' => 'Utilisateur créé.', 'deleted' => 'Utilisateur supprimé.'][(string) ($_GET['ok'] ?? '')] ?? null;
+$ok = ['created' => 'Utilisateur créé.', 'deleted' => 'Utilisateur supprimé.', 'snapshot' => 'Sauvegarde enregistrée.',
+       'restored' => 'Restauration terminée : ' . (int) ($_GET['u'] ?? 0) . ' compte(s), ' . (int) ($_GET['s'] ?? 0) . ' abonnement(s), ' . (int) ($_GET['p'] ?? 0) . ' transaction(s) ajouté(s) ; ' . (int) ($_GET['k'] ?? 0) . ' élément(s) déjà présent(s) ignoré(s).'][(string) ($_GET['ok'] ?? '')] ?? null;
+$snaps = []; try { $sst = UserService::store(); $snaps = $sst ? $sst->snapshots() : []; } catch (\Throwable $e) { error_log('[pharmaco][backup] liste : ' . $e->getMessage()); }
 
 $L = UserService::listAll();
 $subs = []; try { $subs = UserService::store() ? UserService::store()->subscriptions() : []; } catch (\Throwable $e) { error_log('[pharmaco][users] abonnements : ' . $e->getMessage()); }
@@ -90,6 +117,24 @@ $roleDesc = ['Super Admin' => 'Accès complet, gestion des utilisateurs', 'Analy
         <?= $diag['roundtrip'] ? 'Écriture et relecture réussies.' : 'ÉCHEC : la valeur écrite n’a pas été relue.' ?>
         Stockage : <?= h($diag['backend']) ?> · hôte : <?= h($diag['host']) ?> · comptes en base : <?= (int) $diag['users'] ?> · <?= (int) $diag['ms'] ?> ms</div><?php endif; ?>
     <?php endif; ?>
+  </div>
+</div>
+<div class="dv-card" style="margin-top:16px">
+  <div class="dv-card-header">Sauvegarde et restauration</div>
+  <div style="padding:14px">
+    <p class="muted" style="margin-top:0">Comptes, abonnements VIP et transactions MVola sont stockés dans la base Turso, hors du site : ils ne sont pas touchés par un redéploiement. Une sauvegarde automatique est enregistrée chaque nuit (14 conservées). Pour une copie hors ligne, téléchargez la sauvegarde ci-dessous.
+      <b>Le fichier contient les empreintes des mots de passe : gardez-le en lieu sûr.</b></p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <form method="post"><?= Auth::csrfField() ?><input type="hidden" name="action" value="export"><button class="dv-btn"><i class="bi bi-download"></i> Télécharger la sauvegarde</button></form>
+      <form method="post"><?= Auth::csrfField() ?><input type="hidden" name="action" value="snapshot_now"><button class="dv-btn"><i class="bi bi-save"></i> Sauvegarder maintenant</button></form>
+    </div>
+    <form method="post" enctype="multipart/form-data" style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><?= Auth::csrfField() ?><input type="hidden" name="action" value="import">
+      <input type="file" name="backup" accept="application/json,.json" required aria-label="Fichier de sauvegarde">
+      <button class="dv-btn" onclick="return confirm('Restaurer depuis ce fichier ? Les données manquantes sont ajoutées, rien n\'est supprimé ni écrasé.')"><i class="bi bi-upload"></i> Restaurer (fusion)</button></form>
+    <?php if ($snaps): ?><table class="dv-table" style="margin-top:12px"><thead><tr><th>Sauvegarde (UTC)</th><th>Par</th><th>Comptes</th><th>Transactions</th><th></th></tr></thead><tbody>
+      <?php foreach ($snaps as $sn): ?><tr><td><?= h($sn['created_at']) ?></td><td class="muted"><?= h($sn['created_by']) ?></td><td><?= (int) $sn['users'] ?></td><td><?= (int) $sn['payments'] ?></td>
+        <td><form method="post"><?= Auth::csrfField() ?><input type="hidden" name="action" value="snapshot_dl"><input type="hidden" name="id" value="<?= h($sn['id']) ?>"><button class="dv-btn" style="padding:2px 8px">Télécharger</button></form></td></tr><?php endforeach; ?></tbody></table>
+    <?php else: ?><p class="muted" style="margin-bottom:0">Aucune sauvegarde automatique enregistrée pour l’instant.</p><?php endif; ?>
   </div>
 </div>
 <script>
