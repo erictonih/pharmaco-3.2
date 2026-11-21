@@ -70,7 +70,7 @@ if ($ctx['ds']):
 <script>
 const W=<?= json_js($ts['weeks']) ?>, M=<?= json_js($ts['months']) ?>, REG=<?= json_js($geo['regions']) ?>, DEMO=<?= json_js($demo) ?>, CLI=<?= json_js($cli) ?>, LAB=<?= json_js($lab) ?>;
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-Chart.defaults.font.family="'DM Sans',sans-serif";Chart.defaults.color=css('--text-secondary');Chart.defaults.borderColor=css('--border');
+Chart.defaults.font.family="'Inter',system-ui,sans-serif";document.fonts.load('400 12px Inter').then(()=>document.fonts.load('600 12px Inter')).then(()=>Object.values(Chart.instances).forEach(c=>c.update('none')));Chart.defaults.color=css('--text-secondary');Chart.defaults.borderColor=css('--border');
 const opt=(x={})=>Object.assign({responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}},x);
 const PAL=['#0a6cbc','#e53e3e','#f59e0b','#10b981','#8b5cf6','#06b6d4','#94a3b8'];
 new Chart(cWeek,{type:'bar',data:{labels:W.labels,datasets:[{label:'Cas',data:W.total,backgroundColor:'#93c5fd'},{label:'Confirmés',data:W.confirmed,backgroundColor:'#e53e3e'},{label:'Décès',data:W.deaths,backgroundColor:'#111827'}]},options:opt({scales:{x:{ticks:{maxTicksLimit:10}},y:{beginAtZero:true,ticks:{precision:0}}}})});

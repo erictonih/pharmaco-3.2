@@ -2,7 +2,9 @@
    DVSSER — Thème partagé (sidebar + topbar + footer + dark/light)
    ================================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+/* Inter (variable, auto-hébergée : aucune requête vers un tiers) */
+@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/fonts/inter-latin-ext-wght-normal.woff2') format('woff2-variations');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('vendor/fonts/inter-latin-wght-normal.woff2') format('woff2-variations');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
 
 /* ─── Variables ─────────────────────────────────── */
 :root {
@@ -51,7 +53,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     background: var(--bg-main);
     color: var(--text-primary);
     min-height: 100vh;
@@ -97,7 +99,7 @@ body {
 }
 
 .dv-logo-text .app-name {
-    font-family: 'Syne', sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     font-weight: 800;
     font-size: 0.95rem;
     color: var(--accent);
@@ -249,7 +251,7 @@ body {
 }
 
 .dv-page-title {
-    font-family: 'Syne', sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     font-weight: 700;
     font-size: 1.1rem;
     color: var(--text-primary);
@@ -321,7 +323,7 @@ body {
 }
 
 .dv-page-header h1 {
-    font-family: 'Syne', sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     font-size: 1.4rem;
     font-weight: 800;
     color: var(--text-primary);
@@ -348,7 +350,7 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-family: 'Syne', sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     font-size: 0.9rem;
     font-weight: 700;
     color: var(--text-primary);
@@ -390,7 +392,7 @@ body {
 }
 
 .dv-stat-value {
-    font-family: 'Syne', sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     font-size: 1.5rem;
     font-weight: 800;
     color: var(--text-primary);
@@ -428,7 +430,7 @@ body {
 .dv-table thead th {
     background: var(--accent-soft);
     color: var(--accent);
-    font-family: 'Syne', sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     font-weight: 600;
     font-size: 0.75rem;
     letter-spacing: 0.06em;
@@ -475,7 +477,7 @@ body {
     border: 1px solid var(--border);
     border-radius: 9px;
     color: var(--text-primary);
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     font-size: 0.875rem;
     transition: border-color 0.2s, box-shadow 0.2s;
     outline: none;
@@ -543,7 +545,7 @@ body {
     gap: 8px;
     padding: 10px 22px;
     border-radius: 9px;
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     font-size: 0.875rem;
     font-weight: 600;
     cursor: pointer;
@@ -607,7 +609,7 @@ body {
 
 /* ─── Section titles ────────────────────────────── */
 .dv-section-title {
-    font-family: 'Syne', sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     font-size: 0.9rem;
     font-weight: 700;
     color: var(--text-primary);
@@ -737,3 +739,6 @@ body {
         grid-template-columns: repeat(2, 1fr);
     }
 }
+
+/* Cartes Leaflet : même police que le reste du tableau de bord */
+.leaflet-container,.leaflet-container .leaflet-popup-content,.leaflet-tooltip{font-family:'Inter',system-ui,sans-serif}

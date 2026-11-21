@@ -58,7 +58,7 @@ if ($ctx['ds']):
 <script>
 const W=<?= json_js($ts['weeks']) ?>, TOP=<?= json_js($top) ?>, ST=<?= json_js($ov['status']) ?>;
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-Chart.defaults.font.family="'DM Sans',sans-serif";
+Chart.defaults.font.family="'Inter',system-ui,sans-serif";document.fonts.load('400 12px Inter').then(()=>document.fonts.load('600 12px Inter')).then(()=>Object.values(Chart.instances).forEach(c=>c.update('none')));
 function theme(){Chart.defaults.color=css('--text-secondary');Chart.defaults.borderColor=css('--border');}
 theme();
 new Chart(cEpi,{data:{labels:W.labels,datasets:[

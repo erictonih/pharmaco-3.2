@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Accès refusé — DVSSER</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="dvsser-theme.css">
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   body{
     min-height:100vh;display:flex;align-items:center;justify-content:center;
-    background:#f0f4f9;font-family:'DM Sans',sans-serif;
+    background:#f0f4f9;font-family:'Inter',system-ui,sans-serif;
   }
   .card{
     background:#fff;border-radius:24px;padding:56px 48px;
@@ -17,7 +17,7 @@
     box-shadow:0 8px 40px rgba(0,0,0,.08);
   }
   .icon{font-size:4rem;margin-bottom:20px}
-  h1{font-family:'Syne',sans-serif;font-size:1.6rem;color:#0a1628;margin-bottom:12px}
+  h1{font-family:'Inter',system-ui,sans-serif;font-size:1.6rem;color:#0a1628;margin-bottom:12px}
   p{color:#64748b;line-height:1.6;font-size:.95rem;margin-bottom:28px}
   .role-badge{
     display:inline-block;background:#fff4e6;color:#c47d00;
